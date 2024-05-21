@@ -1,5 +1,7 @@
 config.py
 
+*.tar
+
 scheduler.json
 *.nc
 *.swp
