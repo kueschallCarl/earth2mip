@@ -1,24 +1,32 @@
+# app.py
+
 import dash
 from dash import dcc, html
-import plotly.graph_objects as go
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import xarray as xr
 import numpy as np
+import config
+import inference
+from utils import update_plot
 
-# Sample data - replace with your dataset
-ds = xr.Dataset({
-    't2m': (('ensemble', 'time', 'lat', 'lon'), np.random.rand(4, 10, 721, 1440)),
-    'lon': ('lon', np.linspace(0, 359.75, 1440)),
-    'lat': ('lat', np.linspace(90, -90, 721)),
-    'time': ('time', np.arange(10))
-})
+
+ds = config.DS
 
 # Initialize Dash app
 app = dash.Dash(__name__)
 
+# Sample configuration as a string
+sample_config = config.CONFIG_SAMPLE_TEXT
+
 # Layout of the app
-app.layout = html.Div(style={'display': 'flex', 'flex-direction': 'column', 'align-items': 'center', 'justify-content': 'center', 'height': '100vh', 'width': '100vw'}, children=[
-    dcc.Graph(id='globe-plot', style={'width': '80vw', 'height': '80vh'}),
+app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'justifyContent': 'center', 'height': '100vh', 'width': '100vw'}, children=[
+    dcc.Textarea(
+        id='config-input',
+        value=sample_config,
+        style={'width': '80%', 'height': '200px', 'margin-bottom': '20px'}
+    ),
+    html.Button('Apply Config', id='apply-config-button', n_clicks=0),
+    dcc.Graph(id='globe-plot', style={'width': '80vw', 'height': '60vh', 'margin-top': '20px'}),
     html.Div(style={'width': '80vw'}, children=[
         dcc.Slider(
             id='time-slider',
@@ -29,7 +37,7 @@ app.layout = html.Div(style={'display': 'flex', 'flex-direction': 'column', 'ali
             marks={i: str(i) for i in range(len(ds.time))},
             tooltip={"placement": "bottom", "always_visible": True}
         ),
-        html.Div(style={'display': 'flex', 'justify-content': 'space-between', 'margin-top': '10px'}, children=[
+        html.Div(style={'display': 'flex', 'justifyContent': 'space-between', 'margin-top': '10px'}, children=[
             html.Button('Run Simulation', id='run-button', n_clicks=0),
             dcc.Dropdown(
                 id='initial-condition-dropdown',
@@ -41,34 +49,23 @@ app.layout = html.Div(style={'display': 'flex', 'flex-direction': 'column', 'ali
     ])
 ])
 
-# Callback to update the plot based on user inputs
+# Callback to handle the Apply Config button click
 @app.callback(
     Output('globe-plot', 'figure'),
-    [Input('time-slider', 'value'),
-     Input('run-button', 'n_clicks'),
-     Input('initial-condition-dropdown', 'value')]
+    [Input('apply-config-button', 'n_clicks')],
+    [State('config-input', 'value'),
+     State('time-slider', 'value'),
+     State('initial-condition-dropdown', 'value')]
 )
-def update_plot(selected_time, n_clicks, initial_condition):
-    # Example data update based on inputs
-    # In practice, this function would run the simulation with the provided initial conditions
-    lons = ds.lon.values
-    lats = ds.lat.values
-    data = ds.t2m[0, selected_time, :, :].values.flatten()
-
-    fig = go.Figure(go.Choropleth(
-        z=data,
-        locations=ds.lon.values,
-        locationmode='geojson-id',
-        geojson='https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json',
-        colorscale='RdBu',
-        marker_line_color='darkgray',
-        marker_line_width=0.5
-    ))
-
-    fig.update_geos(projection_type="orthographic", showcountries=True, showcoastlines=True, showland=True)
-    fig.update_layout(title=f"Weather Simulation at Time {selected_time}")
-
-    return fig
+def apply_config(n_clicks, config_input, selected_time, initial_condition):
+    config_dict = inference.parse_config(config_input)
+    if config_dict and n_clicks!=0:
+        # Update global dataset or settings if needed based on config
+        inference.run_inference(config_dict)
+        ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
+    else:
+        ds = config.DS
+    return update_plot(ds, config_input, selected_time, initial_condition)
 
 # Run the app
 if __name__ == '__main__':
