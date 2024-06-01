@@ -35,7 +35,7 @@ __all__ = [
 
 def get_data_source(
     channel_names: List[str],
-    netcdf="",
+    local_dataset_path: str = "",
     initial_condition_source=schema.InitialConditionSource.era5,
 ) -> base.DataSource:
     if initial_condition_source == schema.InitialConditionSource.era5:
@@ -45,13 +45,15 @@ def get_data_source(
     elif initial_condition_source == schema.InitialConditionSource.cds:
         return cds.DataSource(channel_names)
     elif initial_condition_source == schema.InitialConditionSource.gfs:
-        return gfs.DataSource(channel_names)
+        if not local_dataset_path:
+            raise ValueError("local_file_path must be provided for GFS data source.")
+        return gfs.DataSource(channel_names, local_dataset_path)
     elif initial_condition_source == schema.InitialConditionSource.ifs:
         return ifs.DataSource(channel_names)
     elif initial_condition_source == schema.InitialConditionSource.hrmip:
         return hrmip.HDFPlSl(path=config.ERA5_HDF5)
     else:
-        raise NotImplementedError(initial_condition_source)
+        raise NotImplementedError(f"Data source {initial_condition_source} is not implemented.")
 
 
 def get_data_from_source(

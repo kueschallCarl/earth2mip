@@ -328,6 +328,7 @@ def run_inference(
             model.in_channel_names,
             initial_condition_source=weather_event.properties.initial_condition_source,
             netcdf=weather_event.properties.netcdf,
+            local_dataset_path=config.local_dataset_path
         )
 
     date_obj = weather_event.properties.start_time
