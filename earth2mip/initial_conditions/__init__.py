@@ -35,8 +35,10 @@ __all__ = [
 
 def get_data_source(
     channel_names: List[str],
-    local_dataset_path: str = "",
     initial_condition_source=schema.InitialConditionSource.era5,
+    netcdf="",
+    local_dataset_path: str = "",
+
 ) -> base.DataSource:
     if initial_condition_source == schema.InitialConditionSource.era5:
         return hdf5.DataSource.from_path(

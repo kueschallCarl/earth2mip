@@ -128,7 +128,7 @@ class EnsembleRun(pydantic.BaseModel):
     grf_noise_sigma: float = 5.0
     grf_noise_tau: float = 2.0
     #local dataset location
-    local_dataset_path = None
+    local_dataset_path: str = None
 
     def get_weather_event(self) -> weather_events.WeatherEvent:
         if self.forecast_name:

@@ -28,7 +28,6 @@ import sys
 from earth2mip.weather_events import Diagnostic, Domain
 
 import earth2mip.grid
-import logger
 from earth2mip import geometry
 from earth2mip.diagnostics import Diagnostics, DiagnosticTypes
 from earth2mip.weather_events import Domain
@@ -156,10 +155,8 @@ def update_netcdf(
     grid: earth2mip.grid.LatLonGrid,
     channel_names_of_data: List[str],
 ):
-    logger.debug("Entering update_netcdf")
     assert len(total_diagnostics) == len(domains), (total_diagnostics, domains)
     lat, lon = grid.lat, grid.lon
-    logger.debug(f"Lat size: {lat.size}, Lon size: {lon.size}")
 
     for d_index, domain in enumerate(domains):
         domain_diagnostics = total_diagnostics[d_index]
@@ -168,7 +165,4 @@ def update_netcdf(
                 var_name = f"{channel}_{diagnostic.type}"
                 if var_name in data.variables:
                     var_data = data.variables[var_name][:]
-                    logger.debug(f"Writing to variable: {var_name}, Data shape: {var_data.shape}")
                     data.variables[var_name][time_count, batch_id, :, :] = var_data[:, i, :, :].cpu().numpy()
-                    logger.debug(f"Written to variable: {var_name}, Data shape: {data.variables[var_name][time_count, batch_id, :, :].shape}")
-    logger.debug("Exiting update_netcdf")
