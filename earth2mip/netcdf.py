@@ -20,12 +20,7 @@ from typing import Iterable, List
 
 import numpy as np
 import torch
-import sys
 import xarray as xr
-
-from typing import List
-import sys
-from earth2mip.weather_events import Diagnostic, Domain
 
 import earth2mip.grid
 from earth2mip import geometry
@@ -111,58 +106,52 @@ def init_dimensions(domain: Domain, group, grid: earth2mip.grid.LatLonGrid):
     return
 
 
-def initialize_netcdf(nc, domains, output_grid, n_ensemble, device):
-    # Create the global group
-    global_group = nc.createGroup('global')
-
-    # Initialize dimensions
-    nc.createDimension('time', None)
-    nc.createDimension('ensemble', n_ensemble)
-    global_group.createDimension('lat', len(output_grid.lat))
-    global_group.createDimension('lon', len(output_grid.lon))
-
-    # Create coordinate variables
-    times = nc.createVariable('time', 'f8', ('time',))
-    ensemble = nc.createVariable('ensemble', 'i4', ('ensemble',))
-    latitudes = global_group.createVariable('lat', 'f4', ('lat',))
-    longitudes = global_group.createVariable('lon', 'f4', ('lon',))
-
-    # Assign attributes
-    latitudes.units = 'degrees_north'
-    longitudes.units = 'degrees_east'
-
-    latitudes[:] = output_grid.lat
-    longitudes[:] = output_grid.lon
-
-    # Initialize data variables for each diagnostic
-    diagnostics = []
+def initialize_netcdf(
+    nc, domains: Iterable[Domain], grid: earth2mip.grid.LatLonGrid, n_ensemble, device
+) -> List[List[Diagnostics]]:
+    nc.createVLType(str, "vls")
+    nc.createDimension("time", None)
+    nc.createDimension("ensemble", n_ensemble)
+    nc.createVariable("time", np.float32, ("time"))
+    total_diagnostics = []
     for domain in domains:
-        for diagnostic in domain.diagnostics:
-            for channel in diagnostic.channels:
-                var_name = f"{channel}_{diagnostic.type}"
-                if var_name not in global_group.variables:
-                    var = global_group.createVariable(var_name, 'f4', ('time', 'ensemble', 'lat', 'lon',), zlib=True)
-                    diagnostics.append(var)
+        group = nc.createGroup(domain.name)
+        init_dimensions(domain, group, grid)
+        diagnostics = []
+        for d in domain.diagnostics:
+            lat = np.array(grid.lat)
+            lon = np.array(grid.lon)
+            diagnostic = DiagnosticTypes[d.type](
+                group, domain, grid, d, lat, lon, device
+            )
+            diagnostics.append(diagnostic)
 
-    return diagnostics
+        total_diagnostics.append(diagnostics)
+    return total_diagnostics
+
 
 def update_netcdf(
     data: torch.Tensor,
-    total_diagnostics: List[List[Diagnostic]],
+    total_diagnostics: List[List[Diagnostics]],
     domains: List[Domain],
     batch_id,
     time_count,
     grid: earth2mip.grid.LatLonGrid,
     channel_names_of_data: List[str],
 ):
-    assert len(total_diagnostics) == len(domains), (total_diagnostics, domains)
-    lat, lon = grid.lat, grid.lon
+    assert len(total_diagnostics) == len(domains), (total_diagnostics, domains)  # noqa
+    lat = np.array(grid.lat)
+    lon = np.array(grid.lon)
 
+    batch_size = geometry.get_batch_size(data)
     for d_index, domain in enumerate(domains):
+        lat, lon, regional_data = geometry.select_space(data, lat, lon, domain)
+
         domain_diagnostics = total_diagnostics[d_index]
         for diagnostic in domain_diagnostics:
-            for i, channel in enumerate(channel_names_of_data):
-                var_name = f"{channel}_{diagnostic.type}"
-                if var_name in data.variables:
-                    var_data = data.variables[var_name][:]
-                    data.variables[var_name][time_count, batch_id, :, :] = var_data[:, i, :, :].cpu().numpy()
+            index = [
+                channel_names_of_data.index(c) for c in diagnostic.diagnostic.channels
+            ]
+            output = data[:, index]
+            diagnostic.update(output, time_count, batch_id, batch_size)
+    return

@@ -17,7 +17,7 @@ def update_plot(ds, config_input, selected_time, initial_condition):
     lons = ds.lon.values
     lats = ds.lat.values
     data = ds.t2m[0, selected_time, :, :].values.flatten()
-
+    print(f"Dataset in 'update_plot': {ds}")
     fig = go.Figure(go.Choropleth(
         z=data,
         locations=ds.lon.values,

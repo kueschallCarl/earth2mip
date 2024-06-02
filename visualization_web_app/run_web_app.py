@@ -62,8 +62,10 @@ def apply_config(n_clicks, config_input, selected_time, initial_condition):
     if config_dict and n_clicks!=0:
         # Update global dataset or settings if needed based on config
         inference.run_inference(config_dict)
+        print(f"Inference finished, loading ds from inference output")
         ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
     else:
+        print(f"Didn't run inference, loading ds from config")
         ds = config.DS
     return update_plot(ds, config_input, selected_time, initial_condition)
 
