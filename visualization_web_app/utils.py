@@ -36,18 +36,28 @@ def update_plot_placeholders(ds, config_input, selected_time, initial_condition)
 
 
 
-def update_plot(ds, config_input, selected_time, initial_condition):
-    lon_step = config.LON_STEP  # Adjust this step size for performance vs. resolution
-    lat_step = config.LAT_STEP  # Adjust this step size for performance vs. resolution
 
-    lons = ds.lon.values[::lon_step]
-    lats = ds.lat.values[::lat_step]
+def update_plot(ds, config_input, selected_time, initial_condition):
+    lon_step = config_input['LON_STEP']  # Adjust this step size for performance vs. resolution
+    lat_step = config_input['LAT_STEP']  # Adjust this step size for performance vs. resolution
+
+    # Extract the subset of data based on the step sizes
+    lons = ds.lon.values[::lon_step].tolist()
+    lats = ds.lat.values[::lat_step].tolist()
     data = ds.t2m[0, selected_time, ::lat_step, ::lon_step].values
 
     # Convert temperature from Kelvin to Celsius
     data_celsius = data - 273.15
 
-    print(f"Dataset in 'update_plot': {ds}")
+    # Debugging: Print the data
+    print(f"Selected time index: {selected_time}")
+    print(f"Selected time value: {ds.time.values[selected_time]}")
+    print(f"Sample data at selected time (first 5 values): {data[:5, :5]}")
+    print(f"Data in Celsius (2D sample):\n{data_celsius[:5, :5]}")
+    
+    # Check the shape and range of data_celsius
+    print(f"Data shape: {data_celsius.shape}")
+    print(f"Data range: min={data_celsius.min()}, max={data_celsius.max()}")
 
     # Create a meshgrid for the coordinates
     lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -55,19 +65,26 @@ def update_plot(ds, config_input, selected_time, initial_condition):
     lat_grid_flat = lat_grid.flatten()
     data_flat = data_celsius.flatten()
 
-    # Create scattergeo trace for 3D globe visualization
-    fig = go.Figure(go.Scattergeo(
+    # Verify the flattened data
+    print(f"Flattened lon grid (first 5 values): {lon_grid_flat[:5]}")
+    print(f"Flattened lat grid (first 5 values): {lat_grid_flat[:5]}")
+    print(f"Flattened data (first 5 values): {data_flat[:5]}")
+
+    # Create the scattergeo trace for 3D globe visualization
+    fig = go.Figure()
+
+    fig.add_trace(go.Scattergeo(
         lon=lon_grid_flat,
         lat=lat_grid_flat,
         text=data_flat,
         marker=dict(
+            size=2,
             color=data_flat,
             colorscale='RdBu_r',
+            cmin=data_celsius.min(),
+            cmax=data_celsius.max(),
             colorbar=dict(title="Temperature (°C)"),
-            size=2,
-            opacity=0.7
-        ),
-        mode='markers'
+        )
     ))
 
     fig.update_geos(

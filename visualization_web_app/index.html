@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CesiumJS Globe</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+    <div id="cesiumContainer" style="width: 100%; height: 100vh;"></div>
+    <script>
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxOWNiOWJlYy1iNjUzLTRiYWUtYTNhMC1lZjcyNjI5YjYwZWMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4NjJ9.dZJ7mbhbiw2GWOYiPPGL720XPMXvGPWfLiRsBrNT5SQ';
+        var viewer = new Cesium.Viewer('cesiumContainer');
+
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                var pointEntities = new Cesium.CustomDataSource('points');
+                
+                var lonStep = 2; // Adjust step size as needed for longitude
+                var latStep = 2; // Adjust step size as needed for latitude
+
+                for (var lon = -180; lon <= 180; lon += lonStep) {
+                    for (var lat = -90; lat <= 90; lat += latStep) {
+                        var closestIndex = findClosestPointIndex(data.lons, data.lats, lon, lat);
+                        var value = data.values[closestIndex];
+                        pointEntities.entities.add({
+                            position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                            point: {
+                                pixelSize: 5,
+                                color: Cesium.Color.fromCssColorString(`rgb(${Math.round((value + 30) / 60 * 255)}, 100, 100)`),
+                            }
+                        });
+                    }
+                }
+                viewer.dataSources.add(pointEntities);
+            });
+
+        // Function to find the closest data point index
+        function findClosestPointIndex(lons, lats, lon, lat) {
+            var minDist = Number.MAX_VALUE;
+            var closestIndex = 0;
+            for (var i = 0; i < lons.length; i++) {
+                var dist = Math.sqrt(Math.pow(lons[i] - lon, 2) + Math.pow(lats[i] - lat, 2));
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIndex = i;
+                }
+            }
+            return closestIndex;
+        }
+    </script>
+</body>
+</html>

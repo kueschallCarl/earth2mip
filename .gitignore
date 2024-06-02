@@ -233,3 +233,6 @@ docs/_build
 docs/examples
 !docs/.env
 !docs/_static
+
+
+cesiumpy_config.py
