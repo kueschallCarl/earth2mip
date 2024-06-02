@@ -7,7 +7,7 @@ import xarray as xr
 import numpy as np
 import config
 import inference
-from utils import update_plot
+from utils import update_plot, update_plot_placeholders
 
 
 ds = config.DS
@@ -64,10 +64,12 @@ def apply_config(n_clicks, config_input, selected_time, initial_condition):
         inference.run_inference(config_dict)
         print(f"Inference finished, loading ds from inference output")
         ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
+        return update_plot(ds, config_input, selected_time, initial_condition)
     else:
         print(f"Didn't run inference, loading ds from config")
         ds = config.DS
-    return update_plot(ds, config_input, selected_time, initial_condition)
+        return update_plot_placeholders(ds, config_input, selected_time, initial_condition)
+
 
 # Run the app
 if __name__ == '__main__':
