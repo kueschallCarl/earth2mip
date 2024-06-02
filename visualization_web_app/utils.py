@@ -37,32 +37,33 @@ def update_plot_placeholders(ds, config_input, selected_time, initial_condition)
 
 
 def update_plot(ds, config_input, selected_time, initial_condition):
-    # Extract a subset of the data for performance reasons
-    lon_step = 10  # Adjust this step size for performance vs. resolution
-    lat_step = 10  # Adjust this step size for performance vs. resolution
+    lon_step = 4  # Adjust this step size for performance vs. resolution
+    lat_step = 4  # Adjust this step size for performance vs. resolution
 
     lons = ds.lon.values[::lon_step]
     lats = ds.lat.values[::lat_step]
-    data = ds.t2m[0, selected_time, ::lat_step, ::lon_step].values.flatten()
+    data = ds.t2m[0, selected_time, ::lat_step, ::lon_step].values
     print(f"Dataset in 'update_plot': {ds}")
 
-    lon_grid, lat_grid = np.meshgrid(lons, lats)
-    lon_grid_flat = lon_grid.flatten()
-    lat_grid_flat = lat_grid.flatten()
-
-    locations = [f"point{i}" for i in range(len(lon_grid_flat))]
-
-    fig = go.Figure(go.Choropleth(
+    fig = go.Figure(go.Heatmap(
         z=data,
-        locations=locations,
-        locationmode='geojson-id',
-        geojson='https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json',
-        colorscale='RdBu',
-        marker_line_color='darkgray',
-        marker_line_width=0.5
+        x=lons,
+        y=lats,
+        colorscale='RdBu'
     ))
 
-    fig.update_geos(projection_type="orthographic", showcountries=True, showcoastlines=True, showland=True)
-    fig.update_layout(title=f"Weather Simulation at Time {selected_time}")
+    fig.update_geos(
+        projection_type="orthographic",
+        showcountries=True,
+        showcoastlines=True,
+        showland=True,
+    )
+    fig.update_layout(
+        title=f"Weather Simulation at Time {selected_time}",
+        geo=dict(
+            lataxis=dict(range=[-90, 90]),
+            lonaxis=dict(range=[-180, 180])
+        )
+    )
     print(f"Finished updating the plot")
     return fig
