@@ -17,39 +17,27 @@
             .then(response => response.json())
             .then(data => {
                 var pointEntities = new Cesium.CustomDataSource('points');
-                
-                var lonStep = 2; // Adjust step size as needed for longitude
-                var latStep = 2; // Adjust step size as needed for latitude
 
-                for (var lon = -180; lon <= 180; lon += lonStep) {
-                    for (var lat = -90; lat <= 90; lat += latStep) {
-                        var closestIndex = findClosestPointIndex(data.lons, data.lats, lon, lat);
-                        var value = data.values[closestIndex];
-                        pointEntities.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                            point: {
-                                pixelSize: 5,
-                                color: Cesium.Color.fromCssColorString(`rgb(${Math.round((value + 30) / 60 * 255)}, 100, 100)`),
-                            }
-                        });
-                    }
+                // Determine the step size based on the total number of points
+                var totalPoints = data.lons.length;
+                var desiredNumberOfPoints = 40000;  // Adjust this value as needed
+                var step = Math.ceil(totalPoints / desiredNumberOfPoints);
+
+                for (var i = 0; i < totalPoints; i += step) {
+                    var lon = data.lons[i];
+                    var lat = data.lats[i];
+                    var value = data.values[i];
+                    pointEntities.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                        point: {
+                            pixelSize: 5,
+                            color: Cesium.Color.fromCssColorString(`rgb(${Math.round((value + 30) / 60 * 255)}, 100, 100)`),
+                        }
+                    });
                 }
+
                 viewer.dataSources.add(pointEntities);
             });
-
-        // Function to find the closest data point index
-        function findClosestPointIndex(lons, lats, lon, lat) {
-            var minDist = Number.MAX_VALUE;
-            var closestIndex = 0;
-            for (var i = 0; i < lons.length; i++) {
-                var dist = Math.sqrt(Math.pow(lons[i] - lon, 2) + Math.pow(lats[i] - lat, 2));
-                if (dist < minDist) {
-                    minDist = dist;
-                    closestIndex = i;
-                }
-            }
-            return closestIndex;
-        }
     </script>
 </body>
 </html>
