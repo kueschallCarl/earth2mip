@@ -38,6 +38,7 @@ def preprocess_xarray_data(ds, region_select, max_points=250000):
 @app.route('/data/<region_select>')
 def data(region_select):
     ds = inference.load_dataset_from_inference_output(config_dict=inference.parse_config(config.CONFIG_SAMPLE_TEXT))
+    print(f"ds shape: {ds.dims}")
     ds_json_ready = preprocess_xarray_data(ds, region_select)
     return jsonify(ds_json_ready)
 
