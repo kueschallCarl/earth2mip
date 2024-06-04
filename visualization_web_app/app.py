@@ -46,17 +46,17 @@ def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, reg
 
 @app.route('/data/<region_select>')
 def data(region_select):
-  # Check for custom region data in session
-  custom_region_data = session.get('custom_region_data')
+    # Check for custom region data in session
+    custom_region_data = session.get('custom_region_data')
 
-  longitude = None
-  latitude = None
-  region_size = 0.5
+    longitude = None
+    latitude = None
+    region_size = 0.5
 
-  if region_select == "custom":
-    longitude = custom_region_data['longitude']
-    latitude = custom_region_data['latitude']
-    region_size = custom_region_data['region_size']
+    if region_select == "custom":
+        longitude = custom_region_data['longitude']
+        latitude = custom_region_data['latitude']
+        region_size = custom_region_data['region_size']
     
     print(f"IN ROUTE DATA <region_select>: Longitude: {longitude}, Latitude: {latitude}, Region Size: {region_size}")
 
