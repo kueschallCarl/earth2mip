@@ -45,7 +45,7 @@
             <option value="germany-only">Germany Only</option>
         </select><br><br>
         
-        <input type="checkbox" id="skipInference" name="skipInference">
+        <input type="checkbox" id="skipInference" name="skipInference" checked>
         <label for="skipInference">Skip Inference</label><br><br>
         
         <button type="submit">Start Simulation</button>
@@ -68,7 +68,7 @@
                         skipInference: skipInference
                     }),
                     success: function() {
-                        window.location.href = '/cesium';
+                        window.location.href = '/cesium?region=' + regionSelect;
                     }
                 });
             });

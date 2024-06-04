@@ -5,7 +5,7 @@ import inference
 
 app = Flask(__name__)
 
-def preprocess_xarray_data(ds, max_points=100000):
+def preprocess_xarray_data(ds, region_select, max_points=250000):
     lons = ds.lon.values
     lats = ds.lat.values
     data = ds.t2m[0,0].values
@@ -15,6 +15,13 @@ def preprocess_xarray_data(ds, max_points=100000):
     lon_grid_flat = lon_grid.flatten()
     lat_grid_flat = lat_grid.flatten()
     data_flat = data_celsius.flatten()
+
+    if region_select == "germany-only":
+        mask = (lat_grid_flat >= 47.2) & (lat_grid_flat <= 55.0) & \
+               (lon_grid_flat >= 5.8) & (lon_grid_flat <= 15.0)
+        lon_grid_flat = lon_grid_flat[mask]
+        lat_grid_flat = lat_grid_flat[mask]
+        data_flat = data_flat[mask]
 
     total_points = lon_grid_flat.size
     step = max(1, int(np.ceil(total_points / max_points)))
@@ -28,10 +35,10 @@ def preprocess_xarray_data(ds, max_points=100000):
     }
     return data_json
 
-@app.route('/data')
-def data():
+@app.route('/data/<region_select>')
+def data(region_select):
     ds = inference.load_dataset_from_inference_output(config_dict=inference.parse_config(config.CONFIG_SAMPLE_TEXT))
-    ds_json_ready = preprocess_xarray_data(ds)
+    ds_json_ready = preprocess_xarray_data(ds, region_select)
     return jsonify(ds_json_ready)
 
 @app.route('/start_simulation', methods=['POST'])
@@ -41,31 +48,26 @@ def start_simulation():
     region_select = data['regionSelect']
     skip_inference = data['skipInference']
 
-    # You can use the config_text and region_select variables to set up your simulation
-    # For example, you might modify the configuration here before starting the simulation
-    # For demonstration, just printing the values
     print("Config Text:", config_text)
     print("Region Selected:", region_select)
     print("Skip Inference:", skip_inference)
 
-    # Save the config or process it as needed
-    # This example just re-parses the config and starts the dataset loading
     config_dict = inference.parse_config(config_text)
 
-    # Conditionally run inference
     if not skip_inference:
         inference.run_inference(config_dict)
 
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
-
-    # Optionally, you might want to save this to a global variable or session
-    # For simplicity, we'll assume the dataset is always accessible
 
     return '', 200
 
 @app.route('/cesium')
 def cesium():
     return send_from_directory('', 'cesium.html')
+
+@app.route('/geojson/<path:filename>')
+def geojson(filename):
+    return send_from_directory('geojson', filename)
 
 @app.route('/')
 def index():
