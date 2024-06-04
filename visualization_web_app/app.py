@@ -1,11 +1,12 @@
-from flask import Flask, jsonify, send_from_directory, request
+from flask import Flask, jsonify, send_from_directory, request, session
 import numpy as np
 import config
 import inference
 
 app = Flask(__name__)
+app.secret_key = '032849783209458u092509234850809'
 
-def preprocess_xarray_data(ds, region_select, max_points=250000):
+def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, max_points=250000):
     lons = ds.lon.values
     lats = ds.lat.values
     data = ds.t2m[0,0].values
@@ -19,6 +20,14 @@ def preprocess_xarray_data(ds, region_select, max_points=250000):
     if region_select == "germany-only":
         mask = (lat_grid_flat >= 47.2) & (lat_grid_flat <= 55.0) & \
                (lon_grid_flat >= 5.8) & (lon_grid_flat <= 15.0)
+        lon_grid_flat = lon_grid_flat[mask]
+        lat_grid_flat = lat_grid_flat[mask]
+        data_flat = data_flat[mask]
+    elif region_select == "custom":
+        if longitude is None or latitude is None:
+            raise ValueError("Longitude and latitude must be provided for custom region")
+        mask = (lat_grid_flat >= latitude - region_size / 2) & (lat_grid_flat <= latitude + region_size / 2) & \
+               (lon_grid_flat >= longitude - region_size / 2) & (lon_grid_flat <= longitude + region_size / 2)
         lon_grid_flat = lon_grid_flat[mask]
         lat_grid_flat = lat_grid_flat[mask]
         data_flat = data_flat[mask]
@@ -37,9 +46,23 @@ def preprocess_xarray_data(ds, region_select, max_points=250000):
 
 @app.route('/data/<region_select>')
 def data(region_select):
+  # Check for custom region data in session
+  custom_region_data = session.get('custom_region_data')
+
+  longitude = None
+  latitude = None
+  region_size = 0.5
+
+  if region_select == "custom":
+    longitude = custom_region_data['longitude']
+    latitude = custom_region_data['latitude']
+    region_size = custom_region_data['region_size']
+    
+    print(f"IN ROUTE DATA <region_select>: Longitude: {longitude}, Latitude: {latitude}, Region Size: {region_size}")
+
     ds = inference.load_dataset_from_inference_output(config_dict=inference.parse_config(config.CONFIG_SAMPLE_TEXT))
     print(f"ds shape: {ds.dims}")
-    ds_json_ready = preprocess_xarray_data(ds, region_select)
+    ds_json_ready = preprocess_xarray_data(ds, region_select, longitude, latitude, region_size)
     return jsonify(ds_json_ready)
 
 @app.route('/start_simulation', methods=['POST'])
@@ -48,11 +71,25 @@ def start_simulation():
     config_text = data['configText']
     region_select = data['regionSelect']
     skip_inference = data['skipInference']
+    longitude = None
+    latitude = None
+    region_size = None
+
+    if region_select == "custom":
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+        region_size = data.get('regionSize')
+        print(f"Longitude: {longitude}, Latitude: {latitude}, Region Size: {region_size}")
 
     print("Config Text:", config_text)
     print("Region Selected:", region_select)
     print("Skip Inference:", skip_inference)
-
+    if region_select == "custom" and longitude is not None and latitude is not None and region_size is not None:
+        session['custom_region_data'] = {
+        'longitude': longitude,
+        'latitude': latitude,
+        'region_size': region_size
+        }
     config_dict = inference.parse_config(config_text)
 
     if not skip_inference:

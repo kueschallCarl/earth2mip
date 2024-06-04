@@ -45,7 +45,19 @@
             <select id="regionSelect" name="regionSelect">
                 <option value="global">Global</option>
                 <option value="germany-only">Germany Only</option>
+                <option value="custom">Custom</option>
             </select>
+
+            <div id="customRegionDiv" style="display: none;">
+                <label for="longitudeInput">Longitude:</label>
+                <input type="text" id="longitudeInput" name="longitudeInput" placeholder="Enter longitude">
+
+                <label for="latitudeInput">Latitude:</label>
+                <input type="text" id="latitudeInput" name="latitudeInput" placeholder="Enter latitude">
+
+                <label for="regionSizeInput">Region Size (degrees):</label>
+                <input type="number" id="regionSizeInput" name="regionSizeInput" placeholder="Enter region size" min="0.1" step="0.1" value="0.5">
+            </div>
 
             <label>
                 <input type="checkbox" id="skipInference" name="skipInference" checked>
@@ -58,23 +70,51 @@
 
     <script>
         $(document).ready(function(){
+            $('#regionSelect').on('change', function() {
+                if ($(this).val() === 'custom') {
+                    $('#customRegionDiv').show();
+                } else {
+                    $('#customRegionDiv').hide();
+                }
+            });
+
             $('#configForm').submit(function(event){
                 event.preventDefault();
                 const configText = $('#configText').val();
                 const regionSelect = $('#regionSelect').val();
                 const skipInference = $('#skipInference').is(':checked');
-                $.ajax({
-                    url: '/start_simulation',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        configText: configText,
-                        regionSelect: regionSelect,
-                        skipInference: skipInference
-                    }),
-                    success: function() {
-                        window.location.href = '/cesium?region=' + regionSelect;
+                let longitude = null;
+                let latitude = null;
+                let regionSize = null;
+
+                if (regionSelect === 'custom') {
+                    longitude = parseFloat($('#longitudeInput').val());
+                    latitude = parseFloat($('#latitudeInput').val());
+                    regionSize = parseFloat($('#regionSizeInput').val());
+
+                    if (isNaN(longitude) || isNaN(latitude) || isNaN(regionSize)) {
+                        alert('Please enter valid values for longitude, latitude and region size.');
+                        return;
                     }
+                }
+                
+                const data = {
+                configText: configText,
+                regionSelect: regionSelect,
+                skipInference: skipInference,
+                longitude: longitude,
+                latitude: latitude,
+                regionSize: regionSize
+            };
+
+            $.ajax({
+            url: '/start_simulation',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function() {
+            window.location.href = '/cesium?region=' + regionSelect;
+            }
                 });
             });
         });
