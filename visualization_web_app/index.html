@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulation Configuration</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
-    <h1>Simulation Configuration</h1>
-    <form id="configForm">
-        <label for="configText">Config:</label><br>
-        <textarea id="configText" name="configText" rows="20" cols="80">{
+    <div class="container">
+        <h1>Simulation Configuration</h1>
+        <form id="configForm">
+            <label for="configText">Config:</label>
+            <textarea id="configText" name="configText" rows="10">{
     "ensemble_members": 1,
     "noise_amplitude": 0.05,
     "simulation_length": 4,
@@ -37,19 +39,22 @@
     "autocast_fp16": false,
     "perturbation_strategy": "correlated",
     "noise_reddening": 2.0
-}</textarea><br><br>
-        
-        <label for="regionSelect">Select Region:</label><br>
-        <select id="regionSelect" name="regionSelect">
-            <option value="global">Global</option>
-            <option value="germany-only">Germany Only</option>
-        </select><br><br>
-        
-        <input type="checkbox" id="skipInference" name="skipInference" checked>
-        <label for="skipInference">Skip Inference</label><br><br>
-        
-        <button type="submit">Start Simulation</button>
-    </form>
+}</textarea>
+
+            <label for="regionSelect">Select Region:</label>
+            <select id="regionSelect" name="regionSelect">
+                <option value="global">Global</option>
+                <option value="germany-only">Germany Only</option>
+            </select>
+
+            <label>
+                <input type="checkbox" id="skipInference" name="skipInference" checked>
+                Skip Inference
+            </label>
+
+            <button type="submit">Start Simulation</button>
+        </form>
+    </div>
 
     <script>
         $(document).ready(function(){
