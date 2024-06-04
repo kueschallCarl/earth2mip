@@ -3,41 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CesiumJS Globe</title>
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <title>Simulation Configuration</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <div id="cesiumContainer" style="width: 100%; height: 100vh;"></div>
+    <h1>Simulation Configuration</h1>
+    <form id="configForm">
+        <label for="configText">Config:</label><br>
+        <textarea id="configText" name="configText" rows="20" cols="80">{
+    "ensemble_members": 1,
+    "noise_amplitude": 0.05,
+    "simulation_length": 4,
+    "weather_event": {
+        "properties": {
+            "name": "Globe",
+            "start_time": "2023-07-15 00:00:00",
+            "initial_condition_source": "cds"
+        },
+        "domains": [
+            {
+                "name": "global",
+                "type": "Window",
+                "diagnostics": [{"type": "raw", "channels": ["t2m", "u10m", "v10m"]}]
+            }
+        ]
+    },
+    "output_path": "outputs/01_ensemble_notebook",
+    "output_frequency": 1,
+    "weather_model": "fcnv2_sm",
+    "seed": 12345,
+    "use_cuda_graphs": false,
+    "ensemble_batch_size": 1,
+    "autocast_fp16": false,
+    "perturbation_strategy": "correlated",
+    "noise_reddening": 2.0
+}</textarea><br><br>
+        
+        <label for="regionSelect">Select Region:</label><br>
+        <select id="regionSelect" name="regionSelect">
+            <option value="global">Global</option>
+            <option value="germany-only">Germany Only</option>
+        </select><br><br>
+        
+        <input type="checkbox" id="skipInference" name="skipInference">
+        <label for="skipInference">Skip Inference</label><br><br>
+        
+        <button type="submit">Start Simulation</button>
+    </form>
+
     <script>
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxOWNiOWJlYy1iNjUzLTRiYWUtYTNhMC1lZjcyNjI5YjYwZWMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4NjJ9.dZJ7mbhbiw2GWOYiPPGL720XPMXvGPWfLiRsBrNT5SQ';
-        var viewer = new Cesium.Viewer('cesiumContainer');
-
-        fetch('/data')
-            .then(response => response.json())
-            .then(data => {
-                var pointEntities = new Cesium.CustomDataSource('points');
-
-                // Determine the step size based on the total number of points
-                var totalPoints = data.lons.length;
-                var desiredNumberOfPoints = 40000;  // Adjust this value as needed
-                var step = Math.ceil(totalPoints / desiredNumberOfPoints);
-
-                for (var i = 0; i < totalPoints; i += step) {
-                    var lon = data.lons[i];
-                    var lat = data.lats[i];
-                    var value = data.values[i];
-                    pointEntities.entities.add({
-                        position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                        point: {
-                            pixelSize: 5,
-                            color: Cesium.Color.fromCssColorString(`rgb(${Math.round((value + 30) / 60 * 255)}, 100, 100)`),
-                        }
-                    });
-                }
-
-                viewer.dataSources.add(pointEntities);
+        $(document).ready(function(){
+            $('#configForm').submit(function(event){
+                event.preventDefault();
+                const configText = $('#configText').val();
+                const regionSelect = $('#regionSelect').val();
+                const skipInference = $('#skipInference').is(':checked');
+                $.ajax({
+                    url: '/start_simulation',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        configText: configText,
+                        regionSelect: regionSelect,
+                        skipInference: skipInference
+                    }),
+                    success: function() {
+                        window.location.href = '/cesium';
+                    }
+                });
             });
+        });
     </script>
 </body>
 </html>
