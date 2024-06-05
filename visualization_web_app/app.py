@@ -6,10 +6,10 @@ import inference
 app = Flask(__name__)
 app.secret_key = '032849783209458u092509234850809'
 
-def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, max_points=250000):
+def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
     lons = ds.lon.values
     lats = ds.lat.values
-    data = ds.t2m[0,0].values
+    data = ds.t2m[0, time_index].values  # Select the appropriate time slice
     data_celsius = data - 273.15  # Convert to Celsius
 
     lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -52,17 +52,15 @@ def data(region_select):
     longitude = None
     latitude = None
     region_size = 0.5
+    time_index = int(request.args.get('time', 0))
 
     if region_select == "custom":
         longitude = custom_region_data['longitude']
         latitude = custom_region_data['latitude']
         region_size = custom_region_data['region_size']
     
-    print(f"IN ROUTE DATA <region_select>: Longitude: {longitude}, Latitude: {latitude}, Region Size: {region_size}")
-
     ds = inference.load_dataset_from_inference_output(config_dict=inference.parse_config(config.CONFIG_SAMPLE_TEXT))
-    print(f"ds shape: {ds.dims}")
-    ds_json_ready = preprocess_xarray_data(ds, region_select, longitude, latitude, region_size)
+    ds_json_ready = preprocess_xarray_data(ds, region_select, longitude, latitude, region_size, time_index)
     return jsonify(ds_json_ready)
 
 @app.route('/start_simulation', methods=['POST'])
@@ -79,17 +77,12 @@ def start_simulation():
         longitude = data.get('longitude')
         latitude = data.get('latitude')
         region_size = data.get('regionSize')
-        print(f"Longitude: {longitude}, Latitude: {latitude}, Region Size: {region_size}")
-
-    print("Config Text:", config_text)
-    print("Region Selected:", region_select)
-    print("Skip Inference:", skip_inference)
-    if region_select == "custom" and longitude is not None and latitude is not None and region_size is not None:
         session['custom_region_data'] = {
-        'longitude': longitude,
-        'latitude': latitude,
-        'region_size': region_size
+            'longitude': longitude,
+            'latitude': latitude,
+            'region_size': region_size
         }
+
     config_dict = inference.parse_config(config_text)
 
     if not skip_inference:
