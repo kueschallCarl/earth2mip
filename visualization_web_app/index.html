@@ -124,7 +124,8 @@
                 config_dict.ensemble_members = parseInt($('#ensembleMembers').val());
                 config_dict.simulation_length = parseInt($('#simulationLength').val()) * 4; // Convert days to simulation length steps
                 config_dict.weather_event.properties.start_time = new Date($('#startTime').val() + 'Z').toISOString();
-                //config_dict.output_path = "outputs/{config_dict.ensemble_members}_ensemble_{config_dict.weather_event.properties.start_time}"
+                config_dict.output_path = `outputs/${config_dict.ensemble_members}_ensemble_${config_dict.weather_event.properties.start_time}`;
+
 
                 const regionSelect = $('#regionSelect').val();
                 const skipInference = $('#skipInference').is(':checked');
