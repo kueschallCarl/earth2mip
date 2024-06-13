@@ -17,21 +17,41 @@
         }
         #controls {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            bottom: 0px;
+            left: 4px;
             z-index: 1000;
+            background-color: #000;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            align-items: center;
+        }
+        #controls h2 {
+            margin: 0;
+            margin-bottom: 10px;
+            color: white;
+        }
+        #controls .buttons {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
         }
         #controls button {
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: #444;
             color: white;
             border: none;
-            padding: 10px;
+            padding: 15px;
             cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
         }
         #controls button:hover {
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: #666;
+        }
+        #currentTimeIndex {
+            color: white;
         }
     </style>
 </head>
@@ -39,8 +59,12 @@
     <div id="cesiumContainer" style="width: 100%; height: 100vh;"></div>
     <div id="infoBox"></div>
     <div id="controls">
-        <button id="prevFrame">Previous Frame</button>
-        <button id="nextFrame">Next Frame</button>
+        <h2>Time</h2>
+        <div class="buttons">
+            <button id="prevFrame">Backward</button>
+            <button id="nextFrame">Forward</button>
+        </div>
+        <div id="currentTimeIndex">Time Index: 0</div>
     </div>
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwYzFkNTkwNi1kMzk1LTQ2OTItYmQ1ZS0xY2YzYTQ1NzZjNmMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4OTZ9.AFxh0lLYIZTIIyw7M949DJkaGlZ4ogxytuZoPn7K464';
@@ -49,98 +73,110 @@
         });
         var infoBox = document.getElementById('infoBox');
         var currentTimeIndex = 0;  // Initialize the current time index
-        var maxTimeIndex = 10;  // Assume you have 10 time frames for demonstration
+        var maxTimeIndex = 4;  // Default value, will be updated dynamically
 
-        function getColorFromTemperature(value) {
-            const minTemp = 10;
-            const maxTemp = 40;
+        // Fetch the simulation length from the backend and set maxTimeIndex
+        fetch('/get_simulation_length')
+            .then(response => response.json())
+            .then(data => {
+                maxTimeIndex = data.simulation_length;
+            })
+            .catch(error => console.error('Error fetching simulation length:', error))
+            .finally(() => {
+                // All initialization code that depends on maxTimeIndex goes here
 
-            value = Math.max(minTemp, Math.min(value, maxTemp));
+                function getColorFromTemperature(value) {
+                    const minTemp = 10;
+                    const maxTemp = 40;
 
-            const fraction = (value - minTemp) / (maxTemp - minTemp);
+                    value = Math.max(minTemp, Math.min(value, maxTemp));
 
-            const r = Math.round(255 * fraction);
-            const g = 0;
-            const b = Math.round(255 * (1 - fraction));
+                    const fraction = (value - minTemp) / (maxTemp - minTemp);
 
-            return Cesium.Color.fromBytes(r, g, b);
-        }
+                    const r = Math.round(255 * fraction);
+                    const g = 0;
+                    const b = Math.round(255 * (1 - fraction));
 
-        async function loadData(region, timeIndex) {
-            const response = await fetch(`/data/${region}?time=${timeIndex}`);
-            const data = await response.json();
-            const pointEntities = new Cesium.CustomDataSource('points');
+                    return Cesium.Color.fromBytes(r, g, b);
+                }
 
-            const totalPoints = data.lons.length;
-            const chunkSize = 20000;
-            for (let i = 0; i < totalPoints; i += chunkSize) {
-                const chunkEnd = Math.min(i + chunkSize, totalPoints);
-                for (let j = i; j < chunkEnd; j++) {
-                    const lon = data.lons[j];
-                    const lat = data.lats[j];
-                    const value = data.values[j];
-                    const entity = pointEntities.entities.add({
-                        position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                        point: {
-                            pixelSize: 8,
-                            color: getColorFromTemperature(value),
-                        },
-                        properties: {
-                            temperature: value.toFixed(2) + ' °C'
+                async function loadData(region, timeIndex) {
+                    const response = await fetch(`/data/${region}?time=${timeIndex}`);
+                    const data = await response.json();
+                    const pointEntities = new Cesium.CustomDataSource('points');
+
+                    const totalPoints = data.lons.length;
+                    const chunkSize = 10000;
+                    for (let i = 0; i < totalPoints; i += chunkSize) {
+                        const chunkEnd = Math.min(i + chunkSize, totalPoints);
+                        for (let j = i; j < chunkEnd; j++) {
+                            const lon = data.lons[j];
+                            const lat = data.lats[j];
+                            const value = data.values[j];
+                            const entity = pointEntities.entities.add({
+                                position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                                point: {
+                                    pixelSize: 8,
+                                    color: getColorFromTemperature(value),
+                                },
+                                properties: {
+                                    temperature: value.toFixed(2) + ' °C'
+                                }
+                            });
                         }
-                    });
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            viewer.dataSources.add(pointEntities);
-
-            // Setup event handler for mouse over
-            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-            handler.setInputAction(function (movement) {
-                const pickedObject = viewer.scene.pick(movement.endPosition);
-                if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-                    const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
-                    if (cartesian) {
-                        const cartographic = Cesium.Ellipsoid.WGS84.cartesianToCartographic(cartesian);
-                        const lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
-                        const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
-                        const temperature = pickedObject.id.properties.temperature.getValue();
-                        infoBox.style.display = 'block';
-                        infoBox.style.left = movement.endPosition.x + 10 + 'px';
-                        infoBox.style.top = movement.endPosition.y + 10 + 'px';
-                        infoBox.innerHTML = `Lon: ${lon}, Lat: ${lat}<br>${temperature}`;
+                        await new Promise(resolve => setTimeout(resolve, 100));
                     }
-                } else {
-                    infoBox.style.display = 'none';
+
+                    viewer.dataSources.add(pointEntities);
+
+                    // Setup event handler for mouse over
+                    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+                    handler.setInputAction(function (movement) {
+                        const pickedObject = viewer.scene.pick(movement.endPosition);
+                        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
+                            const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
+                            if (cartesian) {
+                                const cartographic = Cesium.Ellipsoid.WGS84.cartesianToCartographic(cartesian);
+                                const lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
+                                const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
+                                const temperature = pickedObject.id.properties.temperature.getValue();
+                                infoBox.style.display = 'block';
+                                infoBox.style.left = movement.endPosition.x + 10 + 'px';
+                                infoBox.style.top = movement.endPosition.y + 10 + 'px';
+                                infoBox.innerHTML = `Lon: ${lon}, Lat: ${lat}<br>${temperature}`;
+                            }
+                        } else {
+                            infoBox.style.display = 'none';
+                        }
+                    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+                    // Load country borders
+                    await viewer.dataSources.add(Cesium.GeoJsonDataSource.load('/geojson/countries.geo.json', {
+                        stroke: Cesium.Color.YELLOW,
+                        fill: Cesium.Color.TRANSPARENT,
+                        strokeWidth: 2,
+                        markerSymbol: '?'
+                    }));
                 }
-            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-            // Load country borders
-            await viewer.dataSources.add(Cesium.GeoJsonDataSource.load('/geojson/countries.geo.json', {
-                stroke: Cesium.Color.YELLOW,
-                fill: Cesium.Color.TRANSPARENT,
-                strokeWidth: 2,
-                markerSymbol: '?'
-            }));
-        }
+                function updateTimeIndex(delta) {
+                    currentTimeIndex = Math.max(0, Math.min(maxTimeIndex, currentTimeIndex + delta));
+                    document.getElementById('currentTimeIndex').innerText = `Time Index: ${currentTimeIndex}`;
+                    loadData(region, currentTimeIndex);
+                }
 
-        function updateTimeIndex(delta) {
-            currentTimeIndex = Math.max(0, Math.min(maxTimeIndex, currentTimeIndex + delta));
-            loadData(region, currentTimeIndex);
-        }
+                document.getElementById('prevFrame').addEventListener('click', function() {
+                    updateTimeIndex(-1);
+                });
 
-        document.getElementById('prevFrame').addEventListener('click', function() {
-            updateTimeIndex(-1);
-        });
+                document.getElementById('nextFrame').addEventListener('click', function() {
+                    updateTimeIndex(1);
+                });
 
-        document.getElementById('nextFrame').addEventListener('click', function() {
-            updateTimeIndex(1);
-        });
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const region = urlParams.get('region') || 'global';
-        loadData(region, currentTimeIndex);
+                const urlParams = new URLSearchParams(window.location.search);
+                const region = urlParams.get('region') || 'global';
+                loadData(region, currentTimeIndex);
+            });
     </script>
 </body>
 </html>

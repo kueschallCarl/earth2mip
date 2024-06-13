@@ -90,9 +90,20 @@ def start_simulation():
 
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
 
+    # Get simulation_length from the config_dict
+    simulation_length = config_dict.get('simulation_length', 4)  # Default to 4 if not found
+
+    # Pass simulation_length to the frontend
+    session['simulation_length'] = simulation_length
+
     return '', 200
 
-@app.route('/cesium')
+@app.route('/get_simulation_length')
+def get_simulation_length():
+    simulation_length = session.get('simulation_length', 4)  # Default to 4 if not found
+    return jsonify({'simulation_length': simulation_length})
+
+@app.route('/cesium') 
 def cesium():
     return send_from_directory('', 'cesium.html')
 
