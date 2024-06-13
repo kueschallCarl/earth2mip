@@ -32,12 +32,12 @@
         <form id="configForm">
             <div class="form-group">
                 <label for="ensembleMembers">Ensemble Members:</label>
-                <input type="number" class="form-control" id="ensembleMembers" name="ensembleMembers" value="1">
+                <input type="number" class="form-control" id="ensembleMembers" name="ensembleMembers" value="2">
             </div>
 
             <div class="form-group">
                 <label for="simulationLength">Simulation Length (days):</label>
-                <input type="number" class="form-control" id="simulationLength" name="simulationLength" value="1" min="1">
+                <input type="number" class="form-control" id="simulationLength" name="simulationLength" value="7" min="1">
             </div>
 
             <div class="form-group">
@@ -91,7 +91,7 @@
             $('#diagnosticsChannels').select2({
                 placeholder: 'Select channels',
                 data: channels.map(channel => ({ id: channel, text: channel }))
-            });
+            }).val(["t2m", "u10m", "v10m"]).trigger('change');;
 
             $('#regionSelect').on('change', function() {
                 if ($(this).val() === 'custom') {
