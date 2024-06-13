@@ -83,7 +83,7 @@
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwYzFkNTkwNi1kMzk1LTQ2OTItYmQ1ZS0xY2YzYTQ1NzZjNmMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4OTZ9.AFxh0lLYIZTIIyw7M949DJkaGlZ4ogxytuZoPn7K464';
         var viewer = new Cesium.Viewer('cesiumContainer', {
-            imageryProvider: Cesium.createWorldImagery()
+            imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }), // Use Cesium World Terrain
         });
         var infoBox = document.getElementById('infoBox');
         var currentTimeIndex = 0;  // Initialize the current time index
