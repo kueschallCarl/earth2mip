@@ -64,7 +64,7 @@
             <button id="prevFrame">Backward</button>
             <button id="nextFrame">Forward</button>
         </div>
-        <div id="currentTimeIndex">Time Index: 0</div>
+        <div id="currentTimeIndex">Time: 0</div>
     </div>
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwYzFkNTkwNi1kMzk1LTQ2OTItYmQ1ZS0xY2YzYTQ1NzZjNmMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4OTZ9.AFxh0lLYIZTIIyw7M949DJkaGlZ4ogxytuZoPn7K464';
@@ -75,17 +75,19 @@
         var currentTimeIndex = 0;  // Initialize the current time index
         var maxTimeIndex = 4;  // Default value, will be updated dynamically
         var config_dict = {};  // To store the fetched config_dict
+        var startTime = new Date();  // Default start time
 
-        // Fetch the config_dict from the backend and use it to set maxTimeIndex
+        // Fetch the config_dict from the backend and use it to set maxTimeIndex and startTime
         fetch('/get_config')
             .then(response => response.json())
             .then(data => {
                 config_dict = data;
                 maxTimeIndex = config_dict.simulation_length || 4;  // Default to 4 if not found
+                startTime = new Date(config_dict.weather_event.properties.start_time + 'Z');  // Treat as UTC
             })
             .catch(error => console.error('Error fetching config:', error))
             .finally(() => {
-                // All initialization code that depends on maxTimeIndex goes here
+                // All initialization code that depends on maxTimeIndex and startTime goes here
 
                 function getColorFromTemperature(value) {
                     const minTemp = 10;
@@ -100,6 +102,13 @@
                     const b = Math.round(255 * (1 - fraction));
 
                     return Cesium.Color.fromBytes(r, g, b);
+                }
+
+                function updateCurrentTimeDisplay() {
+                    // Calculate the current time based on startTime and currentTimeIndex
+                    let currentTime = new Date(startTime);
+                    currentTime.setUTCHours(currentTime.getUTCHours() + currentTimeIndex * 6);
+                    document.getElementById('currentTimeIndex').innerText = `Time: ${currentTime.toISOString()}`;
                 }
 
                 async function loadData(region, timeIndex) {
@@ -163,7 +172,7 @@
 
                 function updateTimeIndex(delta) {
                     currentTimeIndex = Math.max(0, Math.min(maxTimeIndex, currentTimeIndex + delta));
-                    document.getElementById('currentTimeIndex').innerText = `Time Index: ${currentTimeIndex}`;
+                    updateCurrentTimeDisplay();
                     loadData(region, currentTimeIndex);
                 }
 
@@ -178,6 +187,7 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const region = urlParams.get('region') || 'global';
                 loadData(region, currentTimeIndex);
+                updateCurrentTimeDisplay();
             });
     </script>
 </body>
