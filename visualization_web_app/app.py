@@ -8,15 +8,15 @@ app = Flask(__name__)
 app.secret_key = '032849783209458u092509234850809'
 inference_status = {'status': 'idle'}
 
-def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
+def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
     lons = ds.lon.values
     lats = ds.lat.values
-    time_steps = ds.t2m.shape[1]  # Get the number of time steps available
+    time_steps = ds[channel].shape[1]  # Get the number of time steps available
     if time_index >= time_steps:
         raise IndexError(f"Time index {time_index} is out of bounds for available time steps {time_steps}")
 
-    data = ds.t2m[0, time_index].values
-    data_celsius = data - 273.15  # Convert to Celsius
+    data = ds[channel][ensemble_member_index, time_index].values  # Select the appropriate time slice and ensemble member
+    data_celsius = data - 273.15  # Convert to Celsius if needed (this assumes all channels need this conversion)
 
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     lon_grid_flat = lon_grid.flatten()
@@ -67,7 +67,6 @@ def set_status():
     inference_status['status'] = data['status']
     return '', 200
 
-
 @app.route('/data/<region_select>')
 def data(region_select):
     # Check for custom region data in session
@@ -77,6 +76,8 @@ def data(region_select):
     latitude = None
     region_size = 0.5
     time_index = int(request.args.get('time', 0))
+    ensemble_member_index = int(request.args.get('ensemble', 0))
+    channel = request.args.get('channel', 't2m')
 
     if region_select == "custom":
         longitude = custom_region_data['longitude']
@@ -85,7 +86,7 @@ def data(region_select):
     
     config_dict = session.get('config_dict', {})
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
-    ds_json_ready = preprocess_xarray_data(ds, region_select, longitude, latitude, region_size, time_index)
+    ds_json_ready = preprocess_xarray_data(ds, channel, ensemble_member_index, region_select, longitude, latitude, region_size, time_index)
     return jsonify(ds_json_ready)
 
 @app.route('/start_simulation', methods=['POST'])
@@ -123,7 +124,6 @@ def start_simulation():
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
 
     return '', 200
-
 
 @app.route('/get_config')
 def get_config():
