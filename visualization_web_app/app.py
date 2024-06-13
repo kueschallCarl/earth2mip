@@ -2,9 +2,11 @@ from flask import Flask, jsonify, send_from_directory, request, session
 import numpy as np
 import config
 import inference
+import time
 
 app = Flask(__name__)
 app.secret_key = '032849783209458u092509234850809'
+inference_status = {'status': 'idle'}
 
 def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
     lons = ds.lon.values
@@ -13,7 +15,7 @@ def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, reg
     if time_index >= time_steps:
         raise IndexError(f"Time index {time_index} is out of bounds for available time steps {time_steps}")
 
-    data = ds.t2m[0, time_index].values  # Select the appropriate time slice
+    data = ds.t2m[0, time_index].values
     data_celsius = data - 273.15  # Convert to Celsius
 
     lon_grid, lat_grid = np.meshgrid(lons, lats)
@@ -47,6 +49,24 @@ def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, reg
         'values': data_flat[downsampled_indices].tolist()
     }
     return data_json
+
+@app.route('/reset_status', methods=['POST'])
+def reset_status():
+    global inference_status
+    inference_status['status'] = 'idle'
+    return '', 200
+
+@app.route('/get_status')
+def get_status():
+    return jsonify(inference_status)
+
+@app.route('/set_status', methods=['POST'])
+def set_status():
+    global inference_status
+    data = request.get_json()
+    inference_status['status'] = data['status']
+    return '', 200
+
 
 @app.route('/data/<region_select>')
 def data(region_select):
@@ -89,14 +109,21 @@ def start_simulation():
         }
 
     config_dict = inference.parse_config(config_text)
-    session['config_dict'] = config_dict  # Store the entire config_dict in the session
+    session['config_dict'] = config_dict
 
     if not skip_inference:
+        # Set status to started
+        inference_status['status'] = 'Inference started, this can take a minute...'
+        print("Inference started")
         inference.run_inference(config_dict)
+        print("Inference completed")
+        # Set status to completed
+        inference_status['status'] = 'Inference completed'
 
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
 
     return '', 200
+
 
 @app.route('/get_config')
 def get_config():

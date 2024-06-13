@@ -24,6 +24,14 @@
         .custom-region {
             display: none;
         }
+        #terminal {
+            margin-top: 20px;
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -83,15 +91,15 @@
 
             <button type="submit" class="btn btn-primary">Start Simulation</button>
         </form>
+        <div id="terminal"></div>
     </div>
 
     <script>
         $(document).ready(function(){
-            // Initialize Select2 for diagnostics channels
             $('#diagnosticsChannels').select2({
                 placeholder: 'Select channels',
                 data: channels.map(channel => ({ id: channel, text: channel }))
-            }).val(["t2m", "u10m", "v10m"]).trigger('change');;
+            }).val(["t2m", "u10m", "v10m"]).trigger('change');
 
             $('#regionSelect').on('change', function() {
                 if ($(this).val() === 'custom') {
@@ -104,7 +112,6 @@
             $('#configForm').submit(function(event){
                 event.preventDefault();
 
-                // Default configuration
                 let config_dict = {
                     "ensemble_members": 1,
                     "noise_amplitude": 0.05,
@@ -134,9 +141,8 @@
                     "noise_reddening": 2.0
                 };
 
-                // Update the configuration with user inputs
                 config_dict.ensemble_members = parseInt($('#ensembleMembers').val());
-                config_dict.simulation_length = parseInt($('#simulationLength').val()) * 4; // Convert days to simulation length steps
+                config_dict.simulation_length = parseInt($('#simulationLength').val()) * 4;
                 config_dict.weather_event.properties.start_time = new Date($('#startTime').val() + 'Z').toISOString();
 
                 const selectedChannels = $('#diagnosticsChannels').val();
@@ -159,7 +165,6 @@
                     }
                 }
 
-                // Construct the output path
                 config_dict.output_path = `outputs/${config_dict.ensemble_members}_ensemble_${config_dict.weather_event.properties.start_time}`;
 
                 const data = {
@@ -181,6 +186,32 @@
                     }
                 });
             });
+
+            function checkStatus() {
+                $.ajax({
+                    url: '/get_status',
+                    method: 'GET',
+                    success: function(data) {
+                        $('#terminal').text(data.status);
+                        if (data.status !== 'Inference completed') {
+                            setTimeout(checkStatus, 1000); // Poll every second
+                        }
+                    }
+                });
+            }
+
+            function resetStatus() {
+                $.ajax({
+                    url: '/reset_status',
+                    method: 'POST',
+                    success: function() {
+                        $('#terminal').text('idle');
+                        checkStatus();
+                    }
+                });
+            }
+
+            resetStatus();
         });
     </script>
 </body>
