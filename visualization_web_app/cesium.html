@@ -107,7 +107,7 @@
                 config_dict = data;
                 maxTimeIndex = config_dict.simulation_length || 4;  // Default to 4 if not found
                 document.getElementById('progressBar').max = maxTimeIndex;
-                startTime = new Date(config_dict.weather_event.properties.start_time + 'Z');  // Treat as UTC
+                startTime = new Date(config_dict.weather_event.properties.start_time);  // Treat as UTC
             })
             .catch(error => console.error('Error fetching config:', error))
             .finally(() => {

@@ -9,6 +9,10 @@ app.secret_key = '032849783209458u092509234850809'
 def preprocess_xarray_data(ds, region_select, longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
     lons = ds.lon.values
     lats = ds.lat.values
+    time_steps = ds.t2m.shape[1]  # Get the number of time steps available
+    if time_index >= time_steps:
+        raise IndexError(f"Time index {time_index} is out of bounds for available time steps {time_steps}")
+
     data = ds.t2m[0, time_index].values  # Select the appropriate time slice
     data_celsius = data - 273.15  # Convert to Celsius
 
@@ -59,7 +63,8 @@ def data(region_select):
         latitude = custom_region_data['latitude']
         region_size = custom_region_data['region_size']
     
-    ds = inference.load_dataset_from_inference_output(config_dict=inference.parse_config(config.CONFIG_SAMPLE_TEXT))
+    config_dict = session.get('config_dict', {})
+    ds = inference.load_dataset_from_inference_output(config_dict=config_dict)
     ds_json_ready = preprocess_xarray_data(ds, region_select, longitude, latitude, region_size, time_index)
     return jsonify(ds_json_ready)
 

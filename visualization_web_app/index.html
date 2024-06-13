@@ -5,66 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulation Configuration</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="static/styles.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .custom-region {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Simulation Configuration</h1>
+        <h1 class="mb-4">Simulation Configuration</h1>
         <form id="configForm">
-            <label for="configText">Config:</label>
-            <textarea id="configText" name="configText" rows="10">{
-    "ensemble_members": 1,
-    "noise_amplitude": 0.05,
-    "simulation_length": 4,
-    "weather_event": {
-        "properties": {
-            "name": "Globe",
-            "start_time": "2023-07-15 00:00:00",
-            "initial_condition_source": "cds"
-        },
-        "domains": [
-            {
-                "name": "global",
-                "type": "Window",
-                "diagnostics": [{"type": "raw", "channels": ["t2m", "u10m", "v10m"]}]
-            }
-        ]
-    },
-    "output_path": "outputs/01_ensemble_notebook",
-    "output_frequency": 1,
-    "weather_model": "fcnv2_sm",
-    "seed": 12345,
-    "use_cuda_graphs": false,
-    "ensemble_batch_size": 1,
-    "autocast_fp16": false,
-    "perturbation_strategy": "correlated",
-    "noise_reddening": 2.0
-}</textarea>
-
-            <label for="regionSelect">Select Region:</label>
-            <select id="regionSelect" name="regionSelect">
-                <option value="global">Global</option>
-                <option value="germany-only">Germany Only</option>
-                <option value="custom">Custom</option>
-            </select>
-
-            <div id="customRegionDiv" style="display: none;">
-                <label for="longitudeInput">Longitude:</label>
-                <input type="text" id="longitudeInput" name="longitudeInput" placeholder="Enter longitude">
-
-                <label for="latitudeInput">Latitude:</label>
-                <input type="text" id="latitudeInput" name="latitudeInput" placeholder="Enter latitude">
-
-                <label for="regionSizeInput">Region Size (degrees):</label>
-                <input type="number" id="regionSizeInput" name="regionSizeInput" placeholder="Enter region size" min="0.0" step="2.5" value="10">
+            <div class="form-group">
+                <label for="ensembleMembers">Ensemble Members:</label>
+                <input type="number" class="form-control" id="ensembleMembers" name="ensembleMembers" value="1">
             </div>
 
-            <label>
-                <input type="checkbox" id="skipInference" name="skipInference" checked>
-                Skip Inference
-            </label>
+            <div class="form-group">
+                <label for="simulationLength">Simulation Length (days):</label>
+                <input type="number" class="form-control" id="simulationLength" name="simulationLength" value="1" min="1">
+            </div>
 
-            <button type="submit">Start Simulation</button>
+            <div class="form-group">
+                <label for="startTime">Start Time:</label>
+                <input type="datetime-local" class="form-control" id="startTime" name="startTime" value="2023-07-15T00:00:00">
+            </div>
+
+            <div class="form-group">
+                <label for="regionSelect">Select Region:</label>
+                <select class="form-control" id="regionSelect" name="regionSelect">
+                    <option value="global">Global</option>
+                    <option value="germany-only">Germany Only</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+
+            <div id="customRegionDiv" class="custom-region">
+                <div class="form-group">
+                    <label for="longitudeInput">Longitude:</label>
+                    <input type="text" class="form-control" id="longitudeInput" name="longitudeInput" placeholder="Enter longitude">
+                </div>
+                <div class="form-group">
+                    <label for="latitudeInput">Latitude:</label>
+                    <input type="text" class="form-control" id="latitudeInput" name="latitudeInput" placeholder="Enter latitude">
+                </div>
+                <div class="form-group">
+                    <label for="regionSizeInput">Region Size (degrees):</label>
+                    <input type="number" class="form-control" id="regionSizeInput" name="regionSizeInput" placeholder="Enter region size" min="0.0" step="2.5" value="10">
+                </div>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="skipInference" name="skipInference" checked>
+                <label class="form-check-label" for="skipInference">
+                    Skip Inference
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Start Simulation</button>
         </form>
     </div>
 
@@ -80,7 +89,43 @@
 
             $('#configForm').submit(function(event){
                 event.preventDefault();
-                const configText = $('#configText').val();
+
+                // Default configuration
+                let config_dict = {
+                    "ensemble_members": 1,
+                    "noise_amplitude": 0.05,
+                    "simulation_length": 4,
+                    "weather_event": {
+                        "properties": {
+                            "name": "Globe",
+                            "start_time": "2023-07-15T00:00:00",
+                            "initial_condition_source": "cds"
+                        },
+                        "domains": [
+                            {
+                                "name": "global",
+                                "type": "Window",
+                                "diagnostics": [{"type": "raw", "channels": ["t2m", "u10m", "v10m"]}]
+                            }
+                        ]
+                    },
+                    "output_path": "outputs/01_ensemble_notebook",
+                    "output_frequency": 1,
+                    "weather_model": "fcnv2_sm",
+                    "seed": 12345,
+                    "use_cuda_graphs": false,
+                    "ensemble_batch_size": 1,
+                    "autocast_fp16": false,
+                    "perturbation_strategy": "correlated",
+                    "noise_reddening": 2.0
+                };
+
+                // Update the configuration with user inputs
+                config_dict.ensemble_members = parseInt($('#ensembleMembers').val());
+                config_dict.simulation_length = parseInt($('#simulationLength').val()) * 4; // Convert days to simulation length steps
+                config_dict.weather_event.properties.start_time = new Date($('#startTime').val() + 'Z').toISOString();
+                //config_dict.output_path = "outputs/{config_dict.ensemble_members}_ensemble_{config_dict.weather_event.properties.start_time}"
+
                 const regionSelect = $('#regionSelect').val();
                 const skipInference = $('#skipInference').is(':checked');
                 let longitude = null;
@@ -97,24 +142,24 @@
                         return;
                     }
                 }
-                
-                const data = {
-                configText: configText,
-                regionSelect: regionSelect,
-                skipInference: skipInference,
-                longitude: longitude,
-                latitude: latitude,
-                regionSize: regionSize
-            };
 
-            $.ajax({
-            url: '/start_simulation',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function() {
-            window.location.href = '/cesium?region=' + regionSelect;
-            }
+                const data = {
+                    configText: JSON.stringify(config_dict),
+                    regionSelect: regionSelect,
+                    skipInference: skipInference,
+                    longitude: longitude,
+                    latitude: latitude,
+                    regionSize: regionSize
+                };
+
+                $.ajax({
+                    url: '/start_simulation',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function() {
+                        window.location.href = '/cesium?region=' + regionSelect;
+                    }
                 });
             });
         });
