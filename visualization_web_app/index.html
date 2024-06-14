@@ -21,7 +21,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .custom-region {
+        .custom-region, .country-region {
             display: none;
         }
         #terminal {
@@ -62,9 +62,16 @@
                 <label for="regionSelect">Select Region:</label>
                 <select class="form-control" id="regionSelect" name="regionSelect">
                     <option value="global">Global</option>
-                    <option value="germany-only">Germany Only</option>
+                    <option value="country">Country</option>
                     <option value="custom">Custom</option>
                 </select>
+            </div>
+
+            <div id="countryRegionDiv" class="country-region">
+                <div class="form-group">
+                    <label for="countrySelect">Select Country:</label>
+                    <select class="form-control" id="countrySelect" name="countrySelect"></select>
+                </div>
             </div>
 
             <div id="customRegionDiv" class="custom-region">
@@ -96,6 +103,19 @@
 
     <script>
         $(document).ready(function(){
+            // Load country list from CSV
+            $.get('/static/country-coord.csv', function(data) {
+                const countries = data.split('\n').map(line => {
+                    const [country, lon, lat] = line.split(',');
+                    return { id: country, text: country, lon: parseFloat(lon), lat: parseFloat(lat) };
+                });
+
+                $('#countrySelect').select2({
+                    placeholder: 'Select country',
+                    data: countries
+                });
+            });
+
             $('#diagnosticsChannels').select2({
                 placeholder: 'Select channels',
                 data: channels.map(channel => ({ id: channel, text: channel }))
@@ -104,8 +124,13 @@
             $('#regionSelect').on('change', function() {
                 if ($(this).val() === 'custom') {
                     $('#customRegionDiv').show();
+                    $('#countryRegionDiv').hide();
+                } else if ($(this).val() === 'country') {
+                    $('#countryRegionDiv').show();
+                    $('#customRegionDiv').hide();
                 } else {
                     $('#customRegionDiv').hide();
+                    $('#countryRegionDiv').hide();
                 }
             });
 
@@ -153,6 +178,7 @@
                 let longitude = null;
                 let latitude = null;
                 let regionSize = null;
+                let country = null;
 
                 if (regionSelect === 'custom') {
                     longitude = parseFloat($('#longitudeInput').val());
@@ -163,6 +189,16 @@
                         alert('Please enter valid values for longitude, latitude and region size.');
                         return;
                     }
+                } else if (regionSelect === 'country') {
+                    const selectedCountry = $('#countrySelect').select2('data')[0];
+                    if (!selectedCountry) {
+                        alert('Please select a valid country.');
+                        return;
+                    }
+                    longitude = selectedCountry.lon;
+                    latitude = selectedCountry.lat;
+                    regionSize = 5; // Example region size for a country, you can adjust this
+                    country = selectedCountry.id;
                 }
 
                 config_dict.output_path = `outputs/${config_dict.ensemble_members}_ensemble_${config_dict.weather_event.properties.start_time}`;
@@ -173,7 +209,8 @@
                     skipInference: skipInference,
                     longitude: longitude,
                     latitude: latitude,
-                    regionSize: regionSize
+                    regionSize: regionSize,
+                    country: country
                 };
 
                 $.ajax({

@@ -3,10 +3,15 @@ import numpy as np
 import config
 import inference
 import time
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = '032849783209458u092509234850809'
 inference_status = {'status': 'idle'}
+
+# Load country coordinates
+country_coords = pd.read_csv('static/country-coord.csv')
+country_coords.set_index('country', inplace=True)
 
 def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000):
     lons = ds.lon.values
@@ -24,15 +29,13 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
     lat_grid_flat = lat_grid.flatten()
     data_flat = data.flatten()
 
-    if region_select == "germany-only":
-        mask = (lat_grid_flat >= 47.2) & (lat_grid_flat <= 55.0) & \
-               (lon_grid_flat >= 5.8) & (lon_grid_flat <= 15.0)
+    if region_select == "country":
+        mask = (lat_grid_flat >= latitude - region_size / 2) & (lat_grid_flat <= latitude + region_size / 2) & \
+               (lon_grid_flat >= longitude - region_size / 2) & (lon_grid_flat <= longitude + region_size / 2)
         lon_grid_flat = lon_grid_flat[mask]
         lat_grid_flat = lat_grid_flat[mask]
         data_flat = data_flat[mask]
     elif region_select == "custom":
-        if longitude is None or latitude is None:
-            raise ValueError("Longitude and latitude must be provided for custom region")
         mask = (lat_grid_flat >= latitude - region_size / 2) & (lat_grid_flat <= latitude + region_size / 2) & \
                (lon_grid_flat >= longitude - region_size / 2) & (lon_grid_flat <= longitude + region_size / 2)
         lon_grid_flat = lon_grid_flat[mask]
@@ -80,7 +83,7 @@ def data(region_select):
     ensemble_member_index = int(request.args.get('ensemble', 0))
     channel = request.args.get('channel', 't2m')
 
-    if region_select == "custom":
+    if region_select == "custom" or region_select == "country":
         longitude = custom_region_data['longitude']
         latitude = custom_region_data['latitude']
         region_size = custom_region_data['region_size']
@@ -100,7 +103,7 @@ def start_simulation():
     latitude = None
     region_size = None
 
-    if region_select == "custom":
+    if region_select == 'custom':
         longitude = data.get('longitude')
         latitude = data.get('latitude')
         region_size = data.get('regionSize')
@@ -109,6 +112,19 @@ def start_simulation():
             'latitude': latitude,
             'region_size': region_size
         }
+    elif region_select == 'country':
+        country = data.get('country')
+        if country in country_coords.index:
+            longitude = country_coords.at[country, 'lon']
+            latitude = country_coords.at[country, 'lat']
+            region_size = 10  # Example region size for a country, adjust as needed
+            session['custom_region_data'] = {
+                'longitude': longitude,
+                'latitude': latitude,
+                'region_size': region_size
+            }
+        else:
+            return jsonify({'error': 'Country not found in the CSV file'}), 400
 
     config_dict = inference.parse_config(config_text)
     session['config_dict'] = config_dict
