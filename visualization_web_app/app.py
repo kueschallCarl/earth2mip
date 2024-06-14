@@ -16,12 +16,13 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
         raise IndexError(f"Time index {time_index} is out of bounds for available time steps {time_steps}")
 
     data = ds[channel][ensemble_member_index, time_index].values  # Select the appropriate time slice and ensemble member
-    data_celsius = data - 273.15  # Convert to Celsius if needed (this assumes all channels need this conversion)
+    if channel == "t2m":
+        data = data - 273.15  # Convert to Celsius if needed (this assumes all channels need this conversion)
 
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     lon_grid_flat = lon_grid.flatten()
     lat_grid_flat = lat_grid.flatten()
-    data_flat = data_celsius.flatten()
+    data_flat = data.flatten()
 
     if region_select == "germany-only":
         mask = (lat_grid_flat >= 47.2) & (lat_grid_flat <= 55.0) & \

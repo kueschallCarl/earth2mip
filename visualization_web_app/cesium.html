@@ -144,6 +144,7 @@
                     option.text = channel;
                     channelSelect.appendChild(option);
                 });
+                channelSelect.value = 't2m';  // Set default value to t2m
 
                 // Populate ensembleSelect options
                 const ensembleSelect = document.getElementById('ensembleSelect');
@@ -158,19 +159,38 @@
             .finally(() => {
                 // All initialization code that depends on maxTimeIndex and startTime goes here
 
-                function getColorFromTemperature(value) {
-                    const minTemp = 10;
-                    const maxTemp = 40;
+                function getColorFromValue(value) {
+                    const channel = channelSelect.value;
 
-                    value = Math.max(minTemp, Math.min(value, maxTemp));
+                    if (channel === "t2m") {
+                        const minTemp = 10;
+                        const maxTemp = 40;
 
-                    const fraction = (value - minTemp) / (maxTemp - minTemp);
+                        value = Math.max(minTemp, Math.min(value, maxTemp));
+                        const fraction = (value - minTemp) / (maxTemp - minTemp);
 
-                    const r = Math.round(255 * fraction);
-                    const g = 0;
-                    const b = Math.round(255 * (1 - fraction));
+                        const r = Math.round(255 * fraction);
+                        const g = 0;
+                        const b = Math.round(255 * (1 - fraction));
 
-                    return Cesium.Color.fromBytes(r, g, b);
+                        return Cesium.Color.fromBytes(r, g, b);
+                    } else if (channel === "u10m" || channel === "v10m") {
+                        const minWind = -10;
+                        const maxWind = 10;
+
+                        value = Math.max(minWind, Math.min(value, maxWind));
+                        const fraction = (value - minWind) / (maxWind - minWind);
+
+                        const r = Math.round(255 * fraction);
+                        const g = 0;
+                        const b = Math.round(255 * (1 - fraction));
+
+                        return Cesium.Color.fromBytes(r, g, b);
+                    } else {
+                        // For other channels, use a grayscale value for simplicity
+                        const grayscaleValue = Math.round(255 * (value - Math.min(...data.values)) / (Math.max(...data.values) - Math.min(...data.values)));
+                        return Cesium.Color.fromBytes(grayscaleValue, grayscaleValue, grayscaleValue);
+                    }
                 }
 
                 function updateCurrentTimeDisplay() {
@@ -179,6 +199,8 @@
                     currentTime.setUTCHours(currentTime.getUTCHours() + currentTimeIndex * 6);
                     document.getElementById('currentTimeIndex').innerText = `Time: ${currentTime.toISOString()}`;
                 }
+
+                let currentDataSource = null;
 
                 async function loadData(region, timeIndex, channel, ensemble) {
                     const response = await fetch(`/data/${region}?time=${timeIndex}&channel=${channel}&ensemble=${ensemble}`);
@@ -197,10 +219,11 @@
                                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
                                 point: {
                                     pixelSize: 8,
-                                    color: getColorFromTemperature(value),
+                                    color: getColorFromValue(value),
                                 },
                                 properties: {
-                                    temperature: value.toFixed(2) + ' °C',
+                                    value: value.toFixed(2),  // Store the current channel value
+                                    channel: channel,
                                     longitude: lon,
                                     latitude: lat
                                 }
@@ -209,7 +232,11 @@
                         await new Promise(resolve => setTimeout(resolve, 100));
                     }
 
+                    if (currentDataSource) {
+                        viewer.dataSources.remove(currentDataSource);
+                    }
                     viewer.dataSources.add(pointEntities);
+                    currentDataSource = pointEntities;
 
                     // Setup event handler for mouse over
                     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -218,11 +245,12 @@
                         if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id) && Cesium.defined(pickedObject.id.properties)) {
                             const longitude = pickedObject.id.properties.longitude.getValue();
                             const latitude = pickedObject.id.properties.latitude.getValue();
-                            const temperature = pickedObject.id.properties.temperature.getValue();
+                            const value = pickedObject.id.properties.value.getValue();
+                            const channel = pickedObject.id.properties.channel.getValue();
                             infoBox.style.display = 'block';
                             infoBox.style.left = movement.endPosition.x + 10 + 'px';
                             infoBox.style.top = movement.endPosition.y + 10 + 'px';
-                            infoBox.innerHTML = `Lon: ${longitude.toFixed(2)}, Lat: ${latitude.toFixed(2)}<br>${temperature}`;
+                            infoBox.innerHTML = `Lon: ${longitude.toFixed(2)}, Lat: ${latitude.toFixed(2)}<br>${channel}: ${value}`;
                         } else {
                             infoBox.style.display = 'none';
                         }
