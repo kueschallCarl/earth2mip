@@ -159,7 +159,7 @@
             .finally(() => {
                 // All initialization code that depends on maxTimeIndex and startTime goes here
 
-                function getColorFromValue(value) {
+                function getColorFromValue(value, values) {
                     const channel = channelSelect.value;
 
                     if (channel === "t2m") {
@@ -188,7 +188,9 @@
                         return Cesium.Color.fromBytes(r, g, b);
                     } else {
                         // For other channels, use a grayscale value for simplicity
-                        const grayscaleValue = Math.round(255 * (value - Math.min(...data.values)) / (Math.max(...data.values) - Math.min(...data.values)));
+                        const minValue = Math.min(...values);
+                        const maxValue = Math.max(...values);
+                        const grayscaleValue = Math.round(255 * (value - minValue) / (maxValue - minValue));
                         return Cesium.Color.fromBytes(grayscaleValue, grayscaleValue, grayscaleValue);
                     }
                 }
@@ -219,7 +221,7 @@
                                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
                                 point: {
                                     pixelSize: 8,
-                                    color: getColorFromValue(value),
+                                    color: getColorFromValue(value, data.values),
                                 },
                                 properties: {
                                     value: value.toFixed(2),  // Store the current channel value
@@ -264,6 +266,7 @@
                         markerSymbol: '?'
                     }));
                 }
+
 
                 function updateTimeIndex(delta) {
                     currentTimeIndex = Math.max(0, Math.min(maxTimeIndex, currentTimeIndex + delta));
