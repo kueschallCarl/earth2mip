@@ -200,7 +200,9 @@
                                     color: getColorFromTemperature(value),
                                 },
                                 properties: {
-                                    temperature: value.toFixed(2) + ' °C'
+                                    temperature: value.toFixed(2) + ' °C',
+                                    longitude: lon,
+                                    latitude: lat
                                 }
                             });
                         }
@@ -213,18 +215,14 @@
                     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
                     handler.setInputAction(function (movement) {
                         const pickedObject = viewer.scene.pick(movement.endPosition);
-                        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-                            const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
-                            if (cartesian) {
-                                const cartographic = Cesium.Ellipsoid.WGS84.cartesianToCartographic(cartesian);
-                                const lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
-                                const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
-                                const temperature = pickedObject.id.properties.temperature.getValue();
-                                infoBox.style.display = 'block';
-                                infoBox.style.left = movement.endPosition.x + 10 + 'px';
-                                infoBox.style.top = movement.endPosition.y + 10 + 'px';
-                                infoBox.innerHTML = `Lon: ${lon}, Lat: ${lat}<br>${temperature}`;
-                            }
+                        if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id) && Cesium.defined(pickedObject.id.properties)) {
+                            const longitude = pickedObject.id.properties.longitude.getValue();
+                            const latitude = pickedObject.id.properties.latitude.getValue();
+                            const temperature = pickedObject.id.properties.temperature.getValue();
+                            infoBox.style.display = 'block';
+                            infoBox.style.left = movement.endPosition.x + 10 + 'px';
+                            infoBox.style.top = movement.endPosition.y + 10 + 'px';
+                            infoBox.innerHTML = `Lon: ${longitude.toFixed(2)}, Lat: ${latitude.toFixed(2)}<br>${temperature}`;
                         } else {
                             infoBox.style.display = 'none';
                         }
