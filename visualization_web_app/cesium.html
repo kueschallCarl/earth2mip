@@ -217,6 +217,7 @@
                             const lon = data.lons[j];
                             const lat = data.lats[j];
                             const value = data.values[j];
+                            const wildfireRisk = data.wildfire_risk[j];
                             const entity = pointEntities.entities.add({
                                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
                                 point: {
@@ -224,10 +225,11 @@
                                     color: getColorFromValue(value, data.values),
                                 },
                                 properties: {
-                                    value: value.toFixed(2),  // Store the current channel value
+                                    value: value.toFixed(2),
                                     channel: channel,
                                     longitude: lon,
-                                    latitude: lat
+                                    latitude: lat,
+                                    wildfireRisk: wildfireRisk
                                 }
                             });
                         }
@@ -240,7 +242,6 @@
                     viewer.dataSources.add(pointEntities);
                     currentDataSource = pointEntities;
 
-                    // Setup event handler for mouse over
                     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
                     handler.setInputAction(function (movement) {
                         const pickedObject = viewer.scene.pick(movement.endPosition);
@@ -249,16 +250,16 @@
                             const latitude = pickedObject.id.properties.latitude.getValue();
                             const value = pickedObject.id.properties.value.getValue();
                             const channel = pickedObject.id.properties.channel.getValue();
+                            const wildfireRisk = pickedObject.id.properties.wildfireRisk;
                             infoBox.style.display = 'block';
                             infoBox.style.left = movement.endPosition.x + 10 + 'px';
                             infoBox.style.top = movement.endPosition.y + 10 + 'px';
-                            infoBox.innerHTML = `Lon: ${longitude.toFixed(2)}, Lat: ${latitude.toFixed(2)}<br>${channel}: ${value}`;
+                            infoBox.innerHTML = `Lon: ${longitude.toFixed(2)}, Lat: ${latitude.toFixed(2)}<br>${channel}: ${value}<br>Wildfire Risk: ${wildfireRisk}%`;
                         } else {
                             infoBox.style.display = 'none';
                         }
                     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-                    // Load country borders
                     await viewer.dataSources.add(Cesium.GeoJsonDataSource.load('/geojson/countries.geo.json', {
                         stroke: Cesium.Color.YELLOW,
                         fill: Cesium.Color.TRANSPARENT,
@@ -266,7 +267,6 @@
                         markerSymbol: '?'
                     }));
                 }
-
 
                 function updateTimeIndex(delta) {
                     currentTimeIndex = Math.max(0, Math.min(maxTimeIndex, currentTimeIndex + delta));
