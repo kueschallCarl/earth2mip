@@ -41,7 +41,7 @@ def calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_
     
     # Normalize the final wildfire risk to be between 0 and 1
     wildfire_risk = (wildfire_risk - np.min(wildfire_risk)) / (np.max(wildfire_risk) - np.min(wildfire_risk))
-    return wildfire_risk * 50
+    return wildfire_risk * 100
 
 def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000, n_days=7):
     lons = ds.lon.values
@@ -105,7 +105,7 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
         'wildfire_risk': downsampled_wildfire_risk.tolist()
     }
 
-    print(data_json['wildfire_risk'])
+    #print(data_json['wildfire_risk'])
 
     return data_json
 
