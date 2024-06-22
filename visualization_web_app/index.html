@@ -123,7 +123,7 @@
             $('#diagnosticsChannels').select2({
                 placeholder: 'Select channels',
                 data: channels.map(channel => ({ id: channel, text: channel }))
-            }).val(["t2m", "u10m", "v10m"]).trigger('change');
+            }).val(["t2m", "u10m", "v10m", "r50"]).trigger('change');
 
             $('#regionSelect').on('change', function() {
                 if ($(this).val() === 'custom') {
