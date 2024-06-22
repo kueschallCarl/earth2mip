@@ -11,36 +11,38 @@ inference_status = {'status': 'idle'}
 country_coords = pd.read_csv('static/country-coord.csv')
 country_coords.set_index('country', inplace=True)
 
-def sigmoid(x):
-    z = np.zeros_like(x)
-    positive_mask = (x >= 0)
-    negative_mask = ~positive_mask
-    z[positive_mask] = np.exp(-x[positive_mask])
-    z[negative_mask] = np.exp(x[negative_mask])
-    result = np.zeros_like(x)
-    result[positive_mask] = 1 / (1 + z[positive_mask])
-    result[negative_mask] = z[negative_mask] / (1 + z[negative_mask])
-    return result
-
-def calculate_wildfire_risk(t2m_data, u10m_data, v10m_data, r50_data):
-    # Normalize temperature data from -20 to 50 degrees
-    normalized_temp = (t2m_data + 20) / 70
+def calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_data):
+    # Automatically normalize temperature data
+    min_temp = np.min(avg_t2m_data)
+    max_temp = np.max(avg_t2m_data)
+    normalized_temp = (avg_t2m_data - min_temp) / (max_temp - min_temp)
     
-    # Calculate risks based on normalized and transformed values
-    temp_risk = sigmoid((normalized_temp - 0.7) * 15)  # Emphasize high temperatures
-    wind_speed = np.sqrt(u10m_data**2 + v10m_data**2)
-    normalized_wind = wind_speed / 20  # Normalize wind speed to [0, 1]
-    wind_risk = sigmoid((normalized_wind - 0.5) * 10)  # Emphasize high wind speeds
-    dry_risk = sigmoid((1 - r50_data) * 20)  # Emphasize low r50 values
+    # Automatically normalize wind speed
+    wind_speed = np.sqrt(avg_u10m_data**2 + avg_v10m_data**2)
+    min_wind = np.min(wind_speed)
+    max_wind = np.max(wind_speed)
+    normalized_wind = (wind_speed - min_wind) / (max_wind - min_wind)
+    
+    # Normalize r50_data inversely, since higher values indicate lower humidity
+    normalized_r50 = (avg_r50_data - np.min(avg_r50_data)) / (np.max(avg_r50_data) - np.min(avg_r50_data))
+    inverse_r50 = 1 - normalized_r50  # Higher risk for higher r50 values
+    
+    # Calculate risks based on normalized and transformed values using exponential function
+    temp_risk = np.exp((normalized_temp - 0.5) * 5)  # Emphasize high temperatures
+    wind_risk = np.exp((normalized_wind - 0.5) * 5)  # Emphasize high wind speeds
+    dry_risk = np.exp((inverse_r50 - 0.5) * 5)  # Emphasize low humidity
     
     # Weightings for each risk component
-    temp_weight = 0.7
-    wind_weight = 0.15
-    dry_weight = 0.15
+    temp_weight = 0.5
+    wind_weight = 0.3
+    dry_weight = 0.2
     
-    # Calculate wildfire risk for each point, ensuring it's between 0 and 1
-    wildfire_risk = temp_risk * temp_weight + wind_risk * wind_weight + dry_risk * dry_weight * 100
-    return wildfire_risk
+    # Calculate wildfire risk for each point
+    wildfire_risk = (temp_risk * temp_weight + wind_risk * wind_weight + dry_risk * dry_weight)
+    
+    # Normalize the final wildfire risk to be between 0 and 1
+    wildfire_risk = (wildfire_risk - np.min(wildfire_risk)) / (np.max(wildfire_risk) - np.min(wildfire_risk))
+    return wildfire_risk * 100
 
 def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000, n_days=7):
     lons = ds.lon.values
@@ -57,14 +59,33 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
     lon_grid_flat = lon_grid.flatten()
     lat_grid_flat = lat_grid.flatten()
     data_flat = data.flatten()
+    # Calculate wildfire risk for all datapoints
+    t2m_data = ds.t2m[ensemble_member_index, -n_days:, :, :].values
+    u10m_data = ds.u10m[ensemble_member_index, -n_days:, :, :].values
+    v10m_data = ds.v10m[ensemble_member_index, -n_days:, :, :].values
+    r50_data = ds.r50[ensemble_member_index, -n_days:, :, :].values
 
     if region_select == "country" or region_select == "custom":
         mask = (lat_grid_flat >= latitude - region_size / 2) & (lat_grid_flat <= latitude + region_size / 2) & \
                (lon_grid_flat >= longitude - region_size / 2) & (lon_grid_flat <= longitude + region_size / 2)
+        # Apply mask to each time step
+        t2m_data = t2m_data[:, mask.reshape(lat_grid.shape)]
+        u10m_data = u10m_data[:, mask.reshape(lat_grid.shape)]
+        v10m_data = v10m_data[:, mask.reshape(lat_grid.shape)]
+        r50_data = r50_data[:, mask.reshape(lat_grid.shape)]
+
         lon_grid_flat = lon_grid_flat[mask]
         lat_grid_flat = lat_grid_flat[mask]
         data_flat = data_flat[mask]
 
+    avg_t2m_data = np.mean(t2m_data, axis=0)
+    avg_u10m_data = np.mean(u10m_data, axis=0)
+    avg_v10m_data = np.mean(v10m_data, axis=0)
+    avg_r50_data = np.mean(r50_data, axis=0)
+    
+    wildfire_risk = calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_data)
+    wildfire_risk_flat = wildfire_risk.flatten()
+    
     total_points = lon_grid_flat.size
     step = max(1, int(np.ceil(total_points / max_points)))
 
@@ -74,15 +95,6 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
     downsampled_lons = lon_grid_flat[downsampled_indices]
     downsampled_lats = lat_grid_flat[downsampled_indices]
     downsampled_values = data_flat[downsampled_indices]
-
-    # Calculate wildfire risk for all datapoints
-    t2m_data = ds.t2m[ensemble_member_index, -n_days:, :, :].values
-    u10m_data = ds.u10m[ensemble_member_index, -n_days:, :, :].values
-    v10m_data = ds.v10m[ensemble_member_index, -n_days:, :, :].values
-    r50_data = ds.r50[ensemble_member_index, -n_days:, :, :].values
-
-    wildfire_risk = calculate_wildfire_risk(t2m_data, u10m_data, v10m_data, r50_data)
-    wildfire_risk_flat = wildfire_risk.flatten()
 
     # Downsample wildfire risk
     downsampled_wildfire_risk = wildfire_risk_flat[downsampled_indices]
@@ -94,7 +106,7 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
         'wildfire_risk': downsampled_wildfire_risk.tolist()
     }
 
-    #print(data_json['wildfire_risk'])
+    print(data_json['wildfire_risk'])
 
     return data_json
 
