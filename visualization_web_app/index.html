@@ -72,6 +72,10 @@
                     <label for="countrySelect">Select Country:</label>
                     <select class="form-control" id="countrySelect" name="countrySelect"></select>
                 </div>
+                <div class="form-group">
+                    <label for="countryRegionSizeInput">Region Size (degrees):</label>
+                    <input type="number" class="form-control" id="countryRegionSizeInput" name="countryRegionSizeInput" placeholder="Enter region size" min="0.0" step="2.5" value="10">
+                </div>
             </div>
 
             <div id="customRegionDiv" class="custom-region">
@@ -197,7 +201,12 @@
                     }
                     longitude = selectedCountry.lon;
                     latitude = selectedCountry.lat;
-                    regionSize = 5; // Example region size for a country, you can adjust this
+                    regionSize = parseFloat($('#countryRegionSizeInput').val());
+
+                    if (isNaN(regionSize)) {
+                        alert('Please enter a valid region size.');
+                        return;
+                    }
                     country = selectedCountry.id;
                 }
 

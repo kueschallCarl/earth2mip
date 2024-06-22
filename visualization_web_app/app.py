@@ -25,24 +25,23 @@ def calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_
     
     # Normalize r50_data inversely, since higher values indicate lower humidity
     normalized_r50 = (avg_r50_data - np.min(avg_r50_data)) / (np.max(avg_r50_data) - np.min(avg_r50_data))
-    inverse_r50 = 1 - normalized_r50  # Higher risk for higher r50 values
     
     # Calculate risks based on normalized and transformed values using exponential function
-    temp_risk = np.exp((normalized_temp - 0.5) * 5)  # Emphasize high temperatures
-    wind_risk = np.exp((normalized_wind - 0.5) * 5)  # Emphasize high wind speeds
-    dry_risk = np.exp((inverse_r50 - 0.5) * 5)  # Emphasize low humidity
+    temp_risk = np.exp((normalized_temp - 0.5) * 2)  # Emphasize high temperatures
+    wind_risk = np.exp((normalized_wind - 0.5) * 2)  # Emphasize high wind speeds
+    dry_risk = np.exp((normalized_r50 - 0.5) * 2)  # Emphasize low humidity
     
     # Weightings for each risk component
-    temp_weight = 0.5
-    wind_weight = 0.3
-    dry_weight = 0.2
+    temp_weight = 0.8
+    wind_weight = 0.1
+    dry_weight = 0.1
     
     # Calculate wildfire risk for each point
     wildfire_risk = (temp_risk * temp_weight + wind_risk * wind_weight + dry_risk * dry_weight)
     
     # Normalize the final wildfire risk to be between 0 and 1
     wildfire_risk = (wildfire_risk - np.min(wildfire_risk)) / (np.max(wildfire_risk) - np.min(wildfire_risk))
-    return wildfire_risk * 100
+    return wildfire_risk * 50
 
 def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000, n_days=7):
     lons = ds.lon.values
@@ -85,7 +84,7 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
     
     wildfire_risk = calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_data)
     wildfire_risk_flat = wildfire_risk.flatten()
-    
+
     total_points = lon_grid_flat.size
     step = max(1, int(np.ceil(total_points / max_points)))
 
@@ -115,7 +114,7 @@ def data(region_select):
     custom_region_data = session.get('custom_region_data')
     longitude = None
     latitude = None
-    region_size = 0.5
+    region_size = 1.0
     time_index = int(request.args.get('time', 0))
     ensemble_member_index = int(request.args.get('ensemble', 0))
     channel = request.args.get('channel', 't2m')
@@ -155,7 +154,7 @@ def start_simulation():
         if country in country_coords.index:
             longitude = country_coords.at[country, 'lon']
             latitude = country_coords.at[country, 'lat']
-            region_size = 10
+            region_size = data.get('regionSize')
             session['custom_region_data'] = {
                 'longitude': longitude,
                 'latitude': latitude,
