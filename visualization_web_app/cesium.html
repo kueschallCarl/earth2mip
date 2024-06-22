@@ -79,6 +79,19 @@
             flex-direction: column;
             align-items: center;
         }
+        .checkbox-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            color: white;
+        }
+        .checkbox-container label {
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-container input {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -104,6 +117,17 @@
             <h3>Ensemble Member</h3>
             <select id="ensembleSelect"></select>
         </div>
+
+        <div class="checkbox-container">
+            <label>
+                <input type="checkbox" id="displayWildfiresCheckbox">
+                Display Wildfires
+            </label>
+            <label>
+                <input type="checkbox" id="displayMarkersCheckbox" checked>
+                Display Markers
+            </label>
+        </div>
     </div>
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxOWNiOWJlYy1iNjUzLTRiYWUtYTNhMC1lZjcyNjI5YjYwZWMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4NjJ9.dZJ7mbhbiw2GWOYiPPGL720XPMXvGPWfLiRsBrNT5SQ';
@@ -117,6 +141,9 @@
         var startTime = new Date();  // Default start time
         var selectedChannel = 't2m';  // Default channel
         var selectedEnsemble = 0;  // Default ensemble member
+
+        var displayWildfires = false;
+        var displayMarkers = true;
 
         // Debounce function to limit the rate of updates
         function debounce(func, wait) {
@@ -220,11 +247,11 @@
                             const wildfireRisk = data.wildfire_risk[j];
                             const entity = pointEntities.entities.add({
                                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                                point: {
+                                point: displayMarkers ? {
                                     pixelSize: 8,
                                     color: getColorFromValue(value, data.values, wildfireRisk),
-                                },
-                                billboard: wildfireRisk > 80.0 ? {
+                                } : undefined,
+                                billboard: (displayWildfires && wildfireRisk > 90.0) ? {
                                     image: '/static/icons/flame_a.png', // Path to your icon image
                                     width: 32,
                                     height: 32,
@@ -305,6 +332,16 @@
 
                 document.getElementById('ensembleSelect').addEventListener('change', function() {
                     selectedEnsemble = this.value;
+                    loadData(region, currentTimeIndex, selectedChannel, selectedEnsemble);
+                });
+
+                document.getElementById('displayWildfiresCheckbox').addEventListener('change', function() {
+                    displayWildfires = this.checked;
+                    loadData(region, currentTimeIndex, selectedChannel, selectedEnsemble);
+                });
+
+                document.getElementById('displayMarkersCheckbox').addEventListener('change', function() {
+                    displayMarkers = this.checked;
                     loadData(region, currentTimeIndex, selectedChannel, selectedEnsemble);
                 });
 
