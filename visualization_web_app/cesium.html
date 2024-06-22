@@ -228,7 +228,8 @@
                                     image: '/static/icons/flame_a.png', // Path to your icon image
                                     width: 32,
                                     height: 32,
-                                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                                    eyeOffset: new Cesium.Cartesian3(0, 0, -1000) // Ensures the billboard is rendered on top
                                 } : undefined,
                                 properties: {
                                     value: value.toFixed(2),
