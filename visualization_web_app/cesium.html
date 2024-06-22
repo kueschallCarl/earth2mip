@@ -158,12 +158,55 @@
     <div id="guideBox">
         <button id="closeGuideButton">Close</button>
         <h2>Channel Guide</h2>
-        <p><strong>t2m:</strong> 2-meter temperature, representing the air temperature at 2 meters above the surface.</p>
-        <p><strong>u10m:</strong> Eastward wind component at 10 meters above the surface.</p>
-        <p><strong>v10m:</strong> Northward wind component at 10 meters above the surface.</p>
-        <p><strong>r50:</strong> Humidity</p>
-        <!-- Add more explanations as needed -->
+        <p>
+            <strong>Temperature at height:</strong><br>
+            <strong>t2m:</strong> Temperature at 2 meters above the ground.
+        </p>
+        <p>
+            <strong>Pressure:</strong><br>
+            <strong>sp:</strong> Surface pressure.<br>
+            <strong>msl:</strong> Mean sea level pressure.
+        </p>
+        <p>
+            <strong>Water Vapor:</strong><br>
+            <strong>tcwv:</strong> Total column water vapor (amount of water vapor in a column of atmosphere from the surface to the top of the atmosphere).
+        </p>
+        <p>
+            <strong>Pressure Levels:</strong><br>
+            For the following variables, the numbers (50, 100, 150, etc.) indicate the pressure level in hectopascals (hPa), with lower numbers corresponding to higher altitudes in the atmosphere:
+        </p>
+        <p>
+            <strong>Wind Speed Components:</strong><br>
+            <strong>u:</strong> Wind speed in the east-west direction.<br>
+            <strong>v:</strong> Wind speed in the north-south direction.
+        </p>
+        <p>
+            <strong>Geopotential Height (z):</strong><br>
+            The height above sea level at a given pressure level.
+        </p>
+        <p>
+            <strong>Temperature at pressure(t):</strong><br>
+            The temperature at a specific pressure level.
+        </p>
+        <p>
+            <strong>Relative Humidity (r):</strong><br>
+            The relative humidity at a specific pressure level.
+        </p>
+        <p>
+            <strong>Specific Humidity (q):</strong><br>
+            The specific humidity at a specific pressure level (the mass of water vapor per unit mass of air).
+        </p>
+        <p>
+            <strong>Examples:</strong><br>
+            <strong>u50:</strong> Wind speed in the east-west direction at 50 hPa.<br>
+            <strong>v500:</strong> Wind speed in the north-south direction at 500 hPa.<br>
+            <strong>z1000:</strong> Geopotential height at 1000 hPa.<br>
+            <strong>t700:</strong> Temperature at 700 hPa.<br>
+            <strong>r850:</strong> Relative humidity at 850 hPa.<br>
+            <strong>q925:</strong> Specific humidity at 925 hPa.
+        </p>
     </div>
+    
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxOWNiOWJlYy1iNjUzLTRiYWUtYTNhMC1lZjcyNjI5YjYwZWMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4NjJ9.dZJ7mbhbiw2GWOYiPPGL720XPMXvGPWfLiRsBrNT5SQ';
         var viewer = new Cesium.Viewer('cesiumContainer', {
