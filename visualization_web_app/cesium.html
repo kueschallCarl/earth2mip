@@ -92,6 +92,31 @@
         .checkbox-container input {
             margin-right: 5px;
         }
+        #guideBox {
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            background-color: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-y: auto;
+            display: none;
+        }
+        #closeGuideButton {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -128,6 +153,16 @@
                 Display Markers
             </label>
         </div>
+        <button id="guideButton">Guide</button>
+    </div>
+    <div id="guideBox">
+        <button id="closeGuideButton">Close</button>
+        <h2>Channel Guide</h2>
+        <p><strong>t2m:</strong> 2-meter temperature, representing the air temperature at 2 meters above the surface.</p>
+        <p><strong>u10m:</strong> Eastward wind component at 10 meters above the surface.</p>
+        <p><strong>v10m:</strong> Northward wind component at 10 meters above the surface.</p>
+        <p><strong>r50:</strong> Humidity</p>
+        <!-- Add more explanations as needed -->
     </div>
     <script>
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxOWNiOWJlYy1iNjUzLTRiYWUtYTNhMC1lZjcyNjI5YjYwZWMiLCJpZCI6MjE5NDQ1LCJpYXQiOjE3MTczNDQ4NjJ9.dZJ7mbhbiw2GWOYiPPGL720XPMXvGPWfLiRsBrNT5SQ';
@@ -343,6 +378,14 @@
                 document.getElementById('displayMarkersCheckbox').addEventListener('change', function() {
                     displayMarkers = this.checked;
                     loadData(region, currentTimeIndex, selectedChannel, selectedEnsemble);
+                });
+
+                document.getElementById('guideButton').addEventListener('click', function() {
+                    document.getElementById('guideBox').style.display = 'block';
+                });
+
+                document.getElementById('closeGuideButton').addEventListener('click', function() {
+                    document.getElementById('guideBox').style.display = 'none';
                 });
 
                 const urlParams = new URLSearchParams(window.location.search);
