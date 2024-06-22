@@ -11,12 +11,35 @@ inference_status = {'status': 'idle'}
 country_coords = pd.read_csv('static/country-coord.csv')
 country_coords.set_index('country', inplace=True)
 
+def sigmoid(x):
+    z = np.zeros_like(x)
+    positive_mask = (x >= 0)
+    negative_mask = ~positive_mask
+    z[positive_mask] = np.exp(-x[positive_mask])
+    z[negative_mask] = np.exp(x[negative_mask])
+    result = np.zeros_like(x)
+    result[positive_mask] = 1 / (1 + z[positive_mask])
+    result[negative_mask] = z[negative_mask] / (1 + z[negative_mask])
+    return result
+
 def calculate_wildfire_risk(t2m_data, u10m_data, v10m_data, r50_data):
-    temp_risk = np.mean(t2m_data > 30)
-    wind_risk = np.mean(np.sqrt(u10m_data**2 + v10m_data**2) > 10)
-    dry_risk = np.mean(r50_data < 20)
+    # Normalize temperature data from -20 to 50 degrees
+    normalized_temp = (t2m_data + 20) / 70
     
-    wildfire_risk = (temp_risk + wind_risk + dry_risk) / 3 * 100
+    # Calculate risks based on normalized and transformed values
+    temp_risk = sigmoid((normalized_temp - 0.7) * 15)  # Emphasize high temperatures
+    wind_speed = np.sqrt(u10m_data**2 + v10m_data**2)
+    normalized_wind = wind_speed / 20  # Normalize wind speed to [0, 1]
+    wind_risk = sigmoid((normalized_wind - 0.5) * 10)  # Emphasize high wind speeds
+    dry_risk = sigmoid((1 - r50_data) * 20)  # Emphasize low r50 values
+    
+    # Weightings for each risk component
+    temp_weight = 0.7
+    wind_weight = 0.15
+    dry_weight = 0.15
+    
+    # Calculate wildfire risk for each point, ensuring it's between 0 and 1
+    wildfire_risk = temp_risk * temp_weight + wind_risk * wind_weight + dry_risk * dry_weight * 100
     return wildfire_risk
 
 def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000, n_days=7):
@@ -47,25 +70,31 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
 
     downsampled_indices = np.arange(0, total_points, step)
 
+    # Prepare downsampled data
+    downsampled_lons = lon_grid_flat[downsampled_indices]
+    downsampled_lats = lat_grid_flat[downsampled_indices]
+    downsampled_values = data_flat[downsampled_indices]
+
+    # Calculate wildfire risk for all datapoints
+    t2m_data = ds.t2m[ensemble_member_index, -n_days:, :, :].values
+    u10m_data = ds.u10m[ensemble_member_index, -n_days:, :, :].values
+    v10m_data = ds.v10m[ensemble_member_index, -n_days:, :, :].values
+    r50_data = ds.r50[ensemble_member_index, -n_days:, :, :].values
+
+    wildfire_risk = calculate_wildfire_risk(t2m_data, u10m_data, v10m_data, r50_data)
+    wildfire_risk_flat = wildfire_risk.flatten()
+
+    # Downsample wildfire risk
+    downsampled_wildfire_risk = wildfire_risk_flat[downsampled_indices]
+
     data_json = {
-        'lons': lon_grid_flat[downsampled_indices].tolist(),
-        'lats': lat_grid_flat[downsampled_indices].tolist(),
-        'values': data_flat[downsampled_indices].tolist()
+        'lons': downsampled_lons.tolist(),
+        'lats': downsampled_lats.tolist(),
+        'values': downsampled_values.tolist(),
+        'wildfire_risk': downsampled_wildfire_risk.tolist()
     }
 
-    # Calculate wildfire risk if longitude and latitude are provided
-    if longitude is not None and latitude is not None:
-        lon_idx = (np.abs(ds.lon.values - longitude)).argmin()
-        lat_idx = (np.abs(ds.lat.values - latitude)).argmin()
-
-        t2m_data = ds.t2m[ensemble_member_index, -n_days:, lat_idx, lon_idx].values
-        u10m_data = ds.u10m[ensemble_member_index, -n_days:, lat_idx, lon_idx].values
-        v10m_data = ds.v10m[ensemble_member_index, -n_days:, lat_idx, lon_idx].values
-        r50_data = ds.r50[ensemble_member_index, -n_days:, lat_idx, lon_idx].values
-
-        wildfire_risk = calculate_wildfire_risk(t2m_data, u10m_data, v10m_data, r50_data)
-        print(wildfire_risk)
-        data_json['wildfire_risk'] = wildfire_risk
+    #print(data_json['wildfire_risk'])
 
     return data_json
 
