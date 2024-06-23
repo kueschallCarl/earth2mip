@@ -4,9 +4,11 @@ import os
 import matplotlib.pyplot as plt
 import json
 import config
+import logging
 import earth2mip.initial_conditions
 import xarray
-
+logger = logging.getLogger("inference")
+logger.setLevel(logging.INFO)
 # Set number of GPUs to use to 1
 os.environ["WORLD_SIZE"] = "1"
 # Set model registry as a local folder

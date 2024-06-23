@@ -2,7 +2,11 @@ import numpy as np
 from flask import Flask, jsonify, send_from_directory, request, session
 import config
 import inference
+import logging
 import pandas as pd
+
+logger = logging.getLogger("inference")
+logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 app.secret_key = '032849783209458u092509234850809'
@@ -148,7 +152,10 @@ def start_simulation():
     longitude = None
     latitude = None
     region_size = None
-
+    channel_to_modify = data.get('channelToModify')
+    modulating_factor = data.get('modulatingFactor')
+    logger.info(f"channel to modify: {channel_to_modify}")
+    logger.info(f"modulating_factor: {modulating_factor}")
     if region_select == 'custom':
         longitude = data.get('longitude')
         latitude = data.get('latitude')
@@ -173,13 +180,15 @@ def start_simulation():
             return jsonify({'error': 'Country not found in the CSV file'}), 400
 
     config_dict = inference.parse_config(config_text)
+    config_dict['channel_to_modify'] = channel_to_modify
+    config_dict['modulating_factor'] = modulating_factor
     session['config_dict'] = config_dict
 
     if not skip_inference:
         inference_status['status'] = 'Inference started, this can take a minute...'
-        print("Inference started")
+        logger.info("Inference started")
         inference.run_inference(config_dict)
-        print("Inference completed")
+        logger.info("Inference completed")
         inference_status['status'] = 'Inference completed'
 
     ds = inference.load_dataset_from_inference_output(config_dict=config_dict)

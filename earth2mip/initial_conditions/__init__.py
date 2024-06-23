@@ -63,6 +63,8 @@ def get_data_from_source(
     time_step: datetime.timedelta = datetime.timedelta(hours=0),
     device: torch.device = "cpu",
     dtype: torch.dtype = torch.float,
+    channel_to_modify: str = None,
+    modulating_factor: float = 1.0
 ) -> torch.Tensor:
     """Get data from a data source
 
@@ -100,11 +102,20 @@ def get_data_from_source(
     # make an empty batch dim
     x = x[None]
     x = regridder(x)
+    
+    # Modify the data of the specified channel by the modulating factor
+    if channel_to_modify is not None:
+        try:
+            channel_index = channel_names.index(channel_to_modify)
+            x[:, :, channel_index, :, :] *= modulating_factor
+        except ValueError:
+            raise ValueError(f"Channel '{channel_to_modify}' not found in channel_names.")
+
     return x
 
 
 def get_initial_condition_for_model(
-    time_loop: time_loop.TimeLoop, data_source: base.DataSource, time: datetime
+    time_loop: time_loop.TimeLoop, data_source: base.DataSource, time: datetime, channel_to_modify: str, modulating_factor: float
 ) -> torch.Tensor:
     return get_data_from_source(
         data_source,
@@ -115,4 +126,6 @@ def get_initial_condition_for_model(
         time_loop.history_time_step,
         time_loop.device,
         time_loop.dtype,
+        channel_to_modify=channel_to_modify,
+        modulating_factor=modulating_factor
     )

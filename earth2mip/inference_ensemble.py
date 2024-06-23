@@ -50,6 +50,11 @@ from earth2mip.schema import EnsembleRun, PerturbationStrategy
 from earth2mip.time_loop import TimeLoop
 
 logger = logging.getLogger("inference")
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler("inference.log")
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 
 def get_checkpoint_path(rank, batch_id, path):
@@ -102,20 +107,6 @@ def run_ensembles(
 
         x = x.repeat(batch_size, 1, 1, 1, 1)
         x_start = perturb(x, rank, batch_id, model.device)
-        # restart_dir = weather_event.properties.restart
-
-        # TODO: figure out if needed
-        # if restart_dir:
-        #     path = get_checkpoint_path(rank, batch_id, restart_dir)
-        #     # TODO use logger
-        #     logger.info(f"Loading from restart from {path}")
-        #     kwargs = torch.load(path)
-        # else:
-        #     kwargs = dict(
-        #         x=x,
-        #         normalize=False,
-        #         time=time,
-        #     )
 
         iterator = model(initial_time, x_start)
 
@@ -125,17 +116,7 @@ def run_ensembles(
 
         time_count = -1
 
-        # for time, data, restart in iterator:
-
         for k, (time, data, _) in enumerate(iterator):
-            # if restart_frequency and k % restart_frequency == 0:
-            #     save_restart(
-            #         restart,
-            #         rank,
-            #         batch_id,
-            #         path=os.path.join(output_path, "restart", time.isoformat()),
-            #     )
-
             # Saving the output
             if output_frequency and k % output_frequency == 0:
                 time_count += 1
@@ -154,24 +135,16 @@ def run_ensembles(
             if k == n_steps:
                 break
 
-        # if restart_frequency is not None:
-        #     save_restart(
-        #         restart,
-        #         rank,
-        #         batch_id,
-        #         path=os.path.join(output_path, "restart", "end"),
-        #     )
-
 
 def main(config=None):
     logging.basicConfig(level=logging.INFO)
-
     if config is None:
         parser = argparse.ArgumentParser()
         parser.add_argument("config")
         parser.add_argument("--weather_model", default=None)
         args = parser.parse_args()
         config = args.config
+    config_dict = parse_config(config)
 
     # If config is a file
     if os.path.exists(config):
@@ -185,25 +158,25 @@ def main(config=None):
             f"Passed config parameter {config} should be valid file or JSON string"
         )
 
-    # if args and args.weather_model:
-    #     config.weather_model = args.weather_model
-
     # Set up parallel
     DistributedManager.initialize()
     device = DistributedManager().device
     group = torch.distributed.group.WORLD
 
-    logging.info(f"Earth-2 MIP config loaded {config}")
-    logging.info(f"Loading model onto device {device}")
+    logger.info(f"Earth-2 MIP config loaded {config}")
+    logger.info(f"Loading model onto device {device}")
     model = get_model(config.weather_model, device=device)
-    logging.info("Constructing initializer data source")
+    logger.info("Constructing initializer data source")
     perturb = get_initializer(
         model,
         config,
     )
-    logging.info("Running inference")
-    run_inference(model, config, perturb, group)
+    logger.info("Running inference")
+    run_inference(model, config, perturb, group, channel_to_modify=config_dict['channel_to_modify'], modulating_factor=config_dict['modulating_factor'])
 
+def parse_config(config_input):
+    config_dict = json.loads(config_input)
+    return config_dict
 
 def get_initializer(
     model,
@@ -304,8 +277,9 @@ def run_inference(
     perturb: Any = None,
     group: Any = None,
     progress: bool = True,
-    # TODO add type hints
     data_source: Any = None,
+    channel_to_modify: str = None,
+    modulating_factor: float = None
 ):
     """Run an ensemble inference for a given config and a perturb function
 
@@ -331,8 +305,8 @@ def run_inference(
         )
 
     date_obj = weather_event.properties.start_time
-    x = initial_conditions.get_initial_condition_for_model(model, data_source, date_obj)
-
+    x = initial_conditions.get_initial_condition_for_model(model, data_source, date_obj,channel_to_modify=channel_to_modify, modulating_factor=modulating_factor)
+    logger.info(f"Initial Conditions dataset: shape {x.size()} Contents: {x.flatten()[:10]}")
     dist = DistributedManager()
     n_ensemble_global = config.ensemble_members
     n_ensemble = n_ensemble_global // dist.world_size
