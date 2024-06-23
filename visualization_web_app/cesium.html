@@ -269,7 +269,7 @@
                     const pointEntities = new Cesium.CustomDataSource('points');
 
                     const totalPoints = data.lons.length;
-                    const chunkSize = 10000;
+                    const chunkSize = 20000;
                     for (let i = 0; i < totalPoints; i += chunkSize) {
                         const chunkEnd = Math.min(i + chunkSize, totalPoints);
                         for (let j = i; j < chunkEnd; j++) {

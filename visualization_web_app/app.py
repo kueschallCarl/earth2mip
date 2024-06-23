@@ -43,7 +43,7 @@ def calculate_wildfire_risk(avg_t2m_data, avg_u10m_data, avg_v10m_data, avg_r50_
     wildfire_risk = (wildfire_risk - np.min(wildfire_risk)) / (np.max(wildfire_risk) - np.min(wildfire_risk))
     return wildfire_risk * 100
 
-def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=250000, n_days=7):
+def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="global", longitude=None, latitude=None, region_size=0.5, time_index=0, max_points=150000, n_days=7):
     lons = ds.lon.values
     lats = ds.lat.values
     time_steps = ds[channel].shape[1]
@@ -59,10 +59,19 @@ def preprocess_xarray_data(ds, channel, ensemble_member_index=0, region_select="
     lat_grid_flat = lat_grid.flatten()
     data_flat = data.flatten()
     # Calculate wildfire risk for all datapoints
-    t2m_data = ds.t2m[ensemble_member_index, -n_days:, :, :].values
-    u10m_data = ds.u10m[ensemble_member_index, -n_days:, :, :].values
-    v10m_data = ds.v10m[ensemble_member_index, -n_days:, :, :].values
-    r50_data = ds.r50[ensemble_member_index, -n_days:, :, :].values
+    # Calculate wildfire risk for all datapoints
+    if time_index == 0:
+        t2m_data = ds.t2m[ensemble_member_index, time_index:time_index+1, :, :].values
+        u10m_data = ds.u10m[ensemble_member_index, time_index:time_index+1, :, :].values
+        v10m_data = ds.v10m[ensemble_member_index, time_index:time_index+1, :, :].values
+        r50_data = ds.r50[ensemble_member_index, time_index:time_index+1, :, :].values
+    else:
+        start_index = max(0, time_index - n_days)
+        t2m_data = ds.t2m[ensemble_member_index, start_index:time_index, :, :].values
+        u10m_data = ds.u10m[ensemble_member_index, start_index:time_index, :, :].values
+        v10m_data = ds.v10m[ensemble_member_index, start_index:time_index, :, :].values
+        r50_data = ds.r50[ensemble_member_index, start_index:time_index, :, :].values
+        print(f"start_index: {start_index}, time index: {time_index}")
 
     if region_select == "country" or region_select == "custom":
         mask = (lat_grid_flat >= latitude - region_size / 2) & (lat_grid_flat <= latitude + region_size / 2) & \
@@ -177,6 +186,10 @@ def start_simulation():
 
     return '', 200
 
+@app.route('/get_status')
+def get_status():
+    return jsonify(inference_status)
+
 @app.route('/get_config')
 def get_config():
     config_dict = session.get('config_dict', {})
@@ -189,7 +202,10 @@ def cesium():
 @app.route('/geojson/<path:filename>')
 def geojson(filename):
     return send_from_directory('geojson', filename)
-
+@app.route('/reset_status', methods=['POST'])
+def reset_status():
+    inference_status['status'] = 'idle'
+    return '', 200
 @app.route('/')
 def index():
     return send_from_directory('', 'index.html')
