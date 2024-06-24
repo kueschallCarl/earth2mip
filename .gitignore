@@ -26,7 +26,6 @@ outputs/
 examples/models/
 tmp/
 tests/Output.*
-*.png
 
 *.bak
 *.egg-info
